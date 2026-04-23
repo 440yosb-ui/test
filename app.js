@@ -386,6 +386,96 @@
     });
   }
 
+  // ---- トースト表示 ----
+  function showToast(message, duration) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, duration || 2000);
+  }
+
+  // ---- 現在の問題から claude.ai 用のプロンプト文字列を作る ----
+  function buildClaudePrompt() {
+    if (!session) return '';
+    const q = session.questions[session.index];
+    const cat = categoryById(q.category);
+    const lines = [];
+    lines.push('Claude Code の学習クイズでわからないことがあります。');
+    lines.push('以下の問題と解説について、非プログラマーにもわかるように教えてください。');
+    lines.push('');
+    lines.push('【カテゴリ】' + (cat ? cat.name : ''));
+    lines.push('【問題】');
+    lines.push(q.question);
+    lines.push('');
+
+    if (q.type === 'input') {
+      lines.push('【形式】コード入力式');
+      lines.push('【正解】' + (q.accepted[0] || ''));
+      if (q.accepted.length > 1) {
+        lines.push('（他の正解: ' + q.accepted.slice(1).join(' / ') + '）');
+      }
+    } else {
+      lines.push('【選択肢】');
+      const labels = ['A', 'B', 'C', 'D'];
+      q.options.forEach((opt, i) => {
+        const mark = (i === q.correct) ? ' ← 正解' : '';
+        lines.push(labels[i] + '. ' + opt + mark);
+      });
+    }
+    lines.push('');
+    lines.push('【解説】');
+    lines.push(q.explanation);
+    lines.push('');
+    lines.push('----');
+    lines.push('【質問】');
+    lines.push('（ここに具体的な質問を書いてください。例: "〇〇って結局どういうこと？" "なぜ××じゃだめなの？" など）');
+    return lines.join('\n');
+  }
+
+  // ---- claude.ai で質問する ----
+  async function askOnClaudeAi() {
+    const prompt = buildClaudePrompt();
+    let copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(prompt);
+        copied = true;
+      }
+    } catch (e) {
+      copied = false;
+    }
+
+    // フォールバック: 一時的な textarea で execCommand
+    if (!copied) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = prompt;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (e) {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      showToast('コピーしました。claude.aiで貼り付けてください', 2600);
+    } else {
+      showToast('コピーに失敗しました。手動で貼り付けてください', 2600);
+    }
+
+    // 少し待ってから claude.ai を開く（トースト表示とユーザー体感のため）
+    setTimeout(() => {
+      window.open('https://claude.ai/new', '_blank', 'noopener,noreferrer');
+    }, 300);
+  }
+
   // ---- イベントバインド ----
   function bindEvents() {
     document.getElementById('btn-random').addEventListener('click', startRandom);
@@ -397,6 +487,7 @@
       }
     });
     document.getElementById('btn-next').addEventListener('click', goNext);
+    document.getElementById('btn-ask-claude').addEventListener('click', askOnClaudeAi);
     document.getElementById('btn-again').addEventListener('click', () => {
       startSession(QUESTIONS, 'ランダム');
     });
