@@ -447,6 +447,59 @@ button {
   pointer-events: none;
 }
 
+/* 入力式問題 */
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-hint {
+  background: var(--bg-card);
+  border-left: 3px solid var(--warning);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-sub);
+  line-height: 1.55;
+}
+
+.code-input {
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 16px; /* iOS で 16px 以上にすると自動ズームを防げる */
+  padding: 14px 16px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.code-input:focus {
+  border-color: var(--primary);
+}
+
+.code-input.correct {
+  border-color: var(--success);
+  background: var(--success-bg);
+  color: var(--text);
+}
+
+.code-input.wrong {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--text);
+}
+
+.code-input:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: var(--text);
+}
+
 /* フィードバック */
 .quiz-feedback {
   display: none;

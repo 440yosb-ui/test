@@ -1,410 +1,396 @@
 // Claude Code 学習クイズ - 問題データ（30問）
+// type: "choice" = 4択, "input" = コード入力
 const CATEGORIES = [
-  { id: "basic",    name: "基本操作",      icon: "🚀", color: "#007aff" },
+  { id: "basic",    name: "基本操作",       icon: "🚀", color: "#007aff" },
   { id: "slash",    name: "スラッシュコマンド", icon: "⌨️", color: "#5856d6" },
-  { id: "tips",     name: "便利な使い方",   icon: "💡", color: "#ff9500" },
-  { id: "security", name: "セキュリティ",   icon: "🔒", color: "#ff3b30" },
+  { id: "tips",     name: "便利な使い方",    icon: "💡", color: "#ff9500" },
+  { id: "security", name: "セキュリティ",    icon: "🔒", color: "#ff3b30" },
   { id: "settings", name: "設定・カスタマイズ", icon: "⚙️", color: "#34c759" }
 ];
 
 const QUESTIONS = [
-  // ===== 基本操作 (8問) =====
+  // ===== 基本操作（4択・5問） =====
   {
     id: 1,
     category: "basic",
-    question: "Claude Code とは、どんなツールですか？",
+    type: "choice",
+    question: "Claude Code はどんなツールですか？",
     options: [
-      "画像を編集するツール",
-      "ターミナル（コマンドライン）からAIと対話してプログラミング作業を手伝ってもらうツール",
-      "メールを自動で送るサービス",
-      "表計算ソフト"
+      "ブラウザで使うチャット型AI（ChatGPT風のWebサービス）",
+      "ターミナル（コマンドライン）上でAIと対話し、ファイル編集・コード生成・テスト実行まで任せられるCLIツール",
+      "VSCodeの拡張機能として動く、コード補完専用のAI",
+      "クラウドで24時間動き続けるサーバー型の自動コーディングAI"
     ],
     correct: 1,
-    explanation: "Claude Code は、Anthropic が提供する公式のコマンドラインツールです。ターミナル上でAIと自然言語で対話しながら、ファイル編集・コード生成・テスト実行などの作業を任せられます。"
+    explanation: "Claude Code は Anthropic が提供するCLI（コマンドラインツール）で、ターミナルからAIに作業を依頼できます。類似のブラウザAIや補完ツールとは違い、実際にあなたのPC上でファイル操作やコマンド実行を行える点が特徴です。"
   },
   {
     id: 2,
     category: "basic",
-    question: "Claude Code を起動するには、ターミナルで何と入力しますか？",
+    type: "choice",
+    question: "Claudeが作業中に「この方向は違う」と気づいた。途中で止める最も適切な方法は？",
     options: [
-      "start",
-      "claude",
-      "ai",
-      "run"
+      "Ctrl + C を押して強制終了する",
+      "Esc キーを押して応答を中断する",
+      "Tab キーを連打して注意を引く",
+      "ターミナルのウィンドウをそのまま閉じる"
     ],
     correct: 1,
-    explanation: "ターミナルで「claude」と入力するだけで対話セッションが始まります。作業したいフォルダ（プロジェクト）に移動してから起動するのが基本です。"
+    explanation: "Esc で現在の応答のみを中断できます（会話は続きます）。Ctrl + C は Claude Code 自体が終了してしまい、ウィンドウを閉じると意図しない状態で切断される可能性があります。"
   },
   {
     id: 3,
     category: "basic",
-    question: "Claude Code に「このファイルを見て」と伝えたいとき、ファイル名の前に付ける便利な記号は？",
+    type: "choice",
+    question: "プロジェクト固有のルール（例: 日本語で答える・このフォルダは触らない）を毎回の会話で自動的に読み込ませるには？",
     options: [
-      "#（シャープ）",
-      "$（ドル）",
-      "@（アットマーク）",
-      "&（アンド）"
+      "README.md に書いておく",
+      "~/.bashrc に書いておく",
+      "プロジェクトのルートに CLAUDE.md を置く",
+      ".claude/prompt.txt を作成する"
     ],
     correct: 2,
-    explanation: "「@ファイル名」のように @ を付けると、そのファイルの内容を一緒に送れます。ファイル名は候補が自動で表示されるので、一覧から選ぶこともできます。"
+    explanation: "CLAUDE.md はプロジェクトルートに置くと Claude が起動時に自動で読み込みます。README.md は人間向けの説明、~/.bashrc はシェル起動設定で Claude とは無関係です。"
   },
   {
     id: 4,
     category: "basic",
-    question: "Claude Code の会話を終了するには？",
+    type: "choice",
+    question: "会話で `src/app.js` というファイルの内容を見てもらいたい。最も簡単で正確なやり方は？",
     options: [
-      "ウィンドウを力ずくで閉じる",
-      "「/exit」と入力、または Ctrl + D を押す",
-      "パソコンを再起動する",
-      "インターネットを切断する"
+      "ファイル全体をコピー＆ペーストで貼り付ける",
+      "ファイル名を書いて「読んで」とだけ伝える",
+      "`@src/app.js` のように @ を先頭に付けて参照する",
+      "先にファイルをGitHubにpushしてURLを渡す"
     ],
-    correct: 1,
-    explanation: "「/exit」または Ctrl + D で安全に終了できます。会話の履歴は自動で保存されるので、あとで「claude --resume」や「/resume」で続きから再開できます。"
+    correct: 2,
+    explanation: "「@ファイルパス」で正確にファイルを指定できます。入力中に候補が表示されるのでタイポも防げます。コピペは量が多いと手間で、URL指定は公開が必要になり余計な手順です。"
   },
   {
     id: 5,
     category: "basic",
-    question: "Claude の作業（出力）を途中で止めたいときは？",
+    type: "choice",
+    question: "Claudeに依頼するとき、失敗を減らす最も効果的なやり方は？",
     options: [
-      "何もできない、最後まで待つしかない",
-      "Esc キーを押す",
-      "Enter を連打する",
-      "パソコンをシャットダウンする"
+      "1回の指示にできるだけ多くの要件を詰め込む",
+      "ゴールと制約（してほしくないこと）を明確にして、小さな単位で進める",
+      "専門用語は避け、抽象的にふんわり伝える",
+      "最初に全て決めず、会話の流れに任せる"
     ],
     correct: 1,
-    explanation: "Esc キーで作業を中断できます。「思っていた方向と違う」と気づいたら、すぐに止めて指示を出し直しましょう。やり直しの時間を節約できます。"
+    explanation: "ゴール・範囲・制約を具体的に伝え、小さく進めるのが定石です。詰め込みは誤解や副作用を招き、抽象的な指示は「良かれと思って」余計な変更を生みます。"
   },
+
+  // ===== スラッシュコマンド（4択・4問） =====
   {
     id: 6,
-    category: "basic",
-    question: "Claude Code に依頼するときのコツとして、最も良いものは？",
+    category: "slash",
+    type: "choice",
+    question: "現在のセッションで使ったトークン量とおおよその料金を確認するスラッシュコマンドは？",
     options: [
-      "短く「いい感じにして」とだけ伝える",
-      "目的と制約（してほしくないこと）を具体的に伝える",
-      "すべて英語で書く",
-      "敬語を使わない"
+      "/usage",
+      "/tokens",
+      "/cost",
+      "/billing"
     ],
-    correct: 1,
-    explanation: "「何を・なぜ・どこまで」を明確に伝えるほど、望む結果に近づきます。例:「このページの文字を大きくしたい。ただし他のページには影響を出さないで」のように、範囲も示すと安全です。"
+    correct: 2,
+    explanation: "/cost がトークン使用量と料金を表示します。使いすぎ防止の「健康診断」として定期的に確認するのがおすすめです。/usage や /billing は Claude Code のコマンドではありません。"
   },
   {
     id: 7,
-    category: "basic",
-    question: "Claude Code でファイルの内容を少し変更してもらった後、自分で結果を確認する方法は？",
+    category: "slash",
+    type: "choice",
+    question: "会話が長くなり文脈が重くなってきた。要約して圧縮するスラッシュコマンドは？",
     options: [
-      "Claude を信じて確認しない",
-      "変更されたファイルを自分で開いて内容を見る／テストを実行する",
-      "パソコンを再起動する",
-      "確認方法はない"
+      "/summary",
+      "/compact",
+      "/squash",
+      "/condense"
     ],
     correct: 1,
-    explanation: "AI は便利ですが完璧ではありません。変更後は必ず自分の目で見る、テストを動かす、実際に動作を試すなど「人間側での確認」が大切です。"
+    explanation: "/compact は会話を要約しつつ重要な情報を残します。似た名前はありません。長時間の作業で応答が鈍くなったと感じたら試してみましょう。"
   },
   {
     id: 8,
-    category: "basic",
-    question: "前回の会話の続きから再開したいときに便利なコマンドは？",
+    category: "slash",
+    type: "choice",
+    question: "話題が変わったので会話履歴を一度リセットしたい。最も適切なコマンドは？",
     options: [
-      "/back",
-      "/resume",
-      "/memory",
-      "/again"
+      "/reset（全設定を初期化）",
+      "/delete（履歴を完全削除）",
+      "/clear（現在の会話文脈をクリア）",
+      "/new（新プロジェクトを作成）"
     ],
-    correct: 1,
-    explanation: "「/resume」で過去の会話の一覧が表示され、選んで続きから再開できます。起動時に「claude --resume」と入れても同じ効果があります。"
+    correct: 2,
+    explanation: "/clear は現在の会話文脈だけをリセットするコマンドです。設定や過去の会話履歴は残ります。他の選択肢はいずれも存在しないか、意図が違うコマンドです。"
   },
-
-  // ===== スラッシュコマンド (5問) =====
   {
     id: 9,
     category: "slash",
-    question: "使えるコマンドの一覧を表示する「/」で始まるコマンドは？",
+    type: "choice",
+    question: "プロジェクトを解析して CLAUDE.md を自動生成してくれるスラッシュコマンドは？",
     options: [
-      "/list",
-      "/commands",
-      "/help",
-      "/menu"
+      "/setup",
+      "/scan",
+      "/analyze",
+      "/init"
     ],
-    correct: 2,
-    explanation: "「/help」で利用可能なスラッシュコマンドの一覧と説明が見られます。困ったらまずこれを覚えておくと安心です。"
+    correct: 3,
+    explanation: "/init は現在のプロジェクトを解析し、CLAUDE.md の雛形を作成します。最初に1回だけ実行しておくと、以後の会話で前提説明が不要になります。"
   },
+
+  // ===== 便利な使い方（4択・4問） =====
   {
     id: 10,
-    category: "slash",
-    question: "今の会話履歴をクリアして、新しいセッションを始めたいときは？",
+    category: "tips",
+    type: "choice",
+    question: "大きな変更を始める前に「何をするつもりか」を先に提示させたい。使うべきモードは？",
     options: [
-      "/clear",
-      "/delete",
-      "/new",
-      "/reset"
+      "Preview mode",
+      "Plan mode（Shift + Tab で切替）",
+      "Dry-run mode",
+      "Review mode"
     ],
-    correct: 0,
-    explanation: "「/clear」で会話履歴をまっさらにできます。話題が変わるときや、AI が前の文脈に引きずられて変な返答をするときに便利です。"
+    correct: 1,
+    explanation: "Plan mode は Shift + Tab で切替でき、作業開始前に計画を提示して承認を求める動きになります。他のモード名は Claude Code には存在しません。"
   },
   {
     id: 11,
-    category: "slash",
-    question: "プロジェクトの内容をまとめた「CLAUDE.md」を自動で作ってくれるコマンドは？",
+    category: "tips",
+    type: "choice",
+    question: "コードレビューや大量の調査を「メイン会話を汚さずに」別働隊に任せたい。使う仕組みは？",
     options: [
-      "/setup",
-      "/init",
-      "/create",
-      "/start"
+      "サブプロセス（OSの子プロセス）",
+      "ワーカースレッド",
+      "サブエージェント（subagent）",
+      "新しいターミナルタブを開く"
     ],
-    correct: 1,
-    explanation: "「/init」で、Claude がプロジェクトを解析して「CLAUDE.md」という説明ファイルを作ってくれます。以降の会話で毎回プロジェクトの前提を説明しなくて済みます。"
+    correct: 2,
+    explanation: "サブエージェントは目的特化の別AIを呼び出す仕組みで、結果だけを受け取れるのでメイン会話の文脈が汚れません。プロセスやスレッドはOSの話で別物です。"
   },
   {
     id: 12,
-    category: "slash",
-    question: "今のセッションで使ったトークン（AIとのやり取りの量）や料金を確認するコマンドは？",
+    category: "tips",
+    type: "choice",
+    question: "最新のライブラリのドキュメントを踏まえて実装してほしい。Claude にネットを見せるには？",
     options: [
-      "/price",
-      "/usage",
-      "/cost",
-      "/bill"
+      "できない。古い知識で書いてもらうしかない",
+      "WebSearch（検索）や WebFetch（URL取得）ツールを使わせる",
+      "ブラウザのスクショを毎回貼り付ける",
+      "VPNを接続するとネットに繋がる"
     ],
-    correct: 2,
-    explanation: "「/cost」で現在のセッションのトークン使用量やおおよその料金が表示されます。使いすぎ防止の健康診断として定期的に見るのがおすすめです。"
+    correct: 1,
+    explanation: "Claude Code には WebSearch と WebFetch が組み込まれており、検索やURL取得ができます。「最新の公式ドキュメントを参照して実装して」と伝えれば自発的に使います。"
   },
   {
     id: 13,
-    category: "slash",
-    question: "会話が長くなってきたとき、要約して文脈を圧縮するコマンドは？",
+    category: "tips",
+    type: "choice",
+    question: "画像（エラー画面のスクショ等）を元に相談したい。やり方は？",
     options: [
-      "/compact",
-      "/shrink",
-      "/trim",
-      "/small"
+      "画像は扱えないので文字で説明するしかない",
+      "画像をクラウドにアップしてURLを渡すしかない",
+      "画像ファイルをターミナルにドラッグ&ドロップ、またはクリップボードから貼り付ける",
+      "PDF化してから添付する必要がある"
     ],
-    correct: 0,
-    explanation: "「/compact」は今までの会話を要約し、大事な情報を残しつつ文脈を軽くします。長時間の作業で Claude の動きが鈍くなってきたら試してみましょう。"
+    correct: 2,
+    explanation: "Claude Code は画像を直接読めます。ドラッグ&ドロップやペーストで画像を添付でき、エラー画面やUIデザインの相談に便利です。"
   },
 
-  // ===== 便利な使い方 (7問) =====
+  // ===== セキュリティ（4択・4問） =====
   {
     id: 14,
-    category: "tips",
-    question: "プロジェクト固有のルール（例:「日本語で答えて」「このフォルダは触らないで」）を毎回伝えなくて済むようにする方法は？",
+    category: "security",
+    type: "choice",
+    question: "許可プロンプトをすべて飛ばす起動オプションとして正しいのは？",
     options: [
-      "毎回コピペして貼り付ける",
-      "「CLAUDE.md」というファイルにルールを書いておく",
-      "紙に書いて机に貼る",
-      "方法はない"
+      "--skip-confirm",
+      "--auto-approve",
+      "--no-prompt",
+      "--dangerously-skip-permissions"
     ],
-    correct: 1,
-    explanation: "プロジェクトのルートに「CLAUDE.md」を置くと、Claude が起動時に自動で読み込みます。「常に日本語で」「このフォルダは編集しない」などの共通ルールをまとめておくと便利です。"
+    correct: 3,
+    explanation: "正解は --dangerously-skip-permissions。名前のとおり危険なので、信頼できる隔離環境（コンテナ等）以外では使わないのが原則です。似た名前のオプションは存在しません。"
   },
   {
     id: 15,
-    category: "tips",
-    question: "大きな変更を加える前に、先に「何をするつもりか」を確認できるモードは？",
+    category: "security",
+    type: "choice",
+    question: "誤ってAPIキーを含む .env の中身を Claude に渡してしまった。まず取るべき行動は？",
     options: [
-      "プランモード（Plan mode）",
-      "ダークモード",
-      "サイレントモード",
-      "機内モード"
+      ".env をローカルから削除する",
+      "コミット履歴から該当ファイルを消す（git filter-branch など）",
+      "対象のAPIキー・トークンをすぐに無効化し、新しいキーを発行して差し替える",
+      "今後気を付ける、として一旦様子を見る"
     ],
-    correct: 0,
-    explanation: "プランモード（Shift + Tab で切替）では、Claude がまず計画を立てて提示し、承認してから作業を開始します。大きな変更や不慣れな作業で役立つ「考えてから動く」モードです。"
+    correct: 2,
+    explanation: "一度外に出た秘密情報は「取り消せない」前提で動くのが鉄則です。最優先は鍵のローテーション。履歴の書き換えや削除はあくまで補助で、無効化が最も効果的です。"
   },
   {
     id: 16,
-    category: "tips",
-    question: "「スクリーンショットのこのエラーを直して」と画像で伝えたいとき、iPhone/PC では？",
+    category: "security",
+    type: "choice",
+    question: "知らない人が作った GitHub リポジトリを Claude Code で開く時、最も警戒すべきリスクは？",
     options: [
-      "画像は使えない、文字で説明するしかない",
-      "画像ファイルをターミナルにドラッグ＆ドロップする／貼り付ける",
-      "FAX で送る",
-      "音声で伝える"
+      "ファイル数が多くて遅くなる",
+      "CLAUDE.md や README に仕込まれた悪意ある指示（プロンプトインジェクション）でAIが乗っ取られる",
+      "文字コードの違いで文字化けする",
+      "ライセンスが明記されていないこと"
     ],
     correct: 1,
-    explanation: "Claude Code は画像を理解できます。スクリーンショットをコピーして貼り付けるか、ファイルをドラッグすれば、画像を見ながら答えてくれます。"
+    explanation: "プロンプトインジェクションは外部リポジトリを開く最大のリスクです。「まず読むだけ」の状態で中身を確認し、不審な指示が無いか目視してから作業に入りましょう。"
   },
   {
     id: 17,
-    category: "tips",
-    question: "複数の作業をまとめて頼みたいとき、Claude が使う「進捗管理」の仕組みは？",
+    category: "security",
+    type: "choice",
+    question: "特に実行前の確認を怠ってはいけない「取り返しがつきにくい」git 操作はどれ？",
     options: [
-      "Todo リスト",
-      "カレンダー",
-      "メール下書き",
-      "ブックマーク"
+      "git status",
+      "git fetch origin",
+      "git diff --cached",
+      "git push --force"
     ],
-    correct: 0,
-    explanation: "Claude は複雑なタスクを自動で Todo リストに分解し、一つずつ進めながら進捗を表示します。進み具合が見えるので、長い作業でも安心して任せられます。"
+    correct: 3,
+    explanation: "git push --force はリモートの履歴を上書きし、他人の作業を消しかねない破壊的操作です。status / fetch / diff は読み取り中心で破壊性は低めです。"
   },
+
+  // ===== 設定・カスタマイズ（4択・3問） =====
   {
     id: 18,
-    category: "tips",
-    question: "専門的な作業（例: コードレビュー、調査）を「別の専門スタッフ」に任せる仕組みは？",
+    category: "settings",
+    type: "choice",
+    question: "「自分だけの設定」で、Git にもコミットしたくない設定を書くべきファイルは？",
     options: [
-      "サブエージェント（subagent）",
-      "サブスクリプション",
-      "サブタイトル",
-      "サブフォルダ"
+      "~/.claude/user.json",
+      ".claude/private.json",
+      ".claude/settings.local.json",
+      ".claude/dev.json"
     ],
-    correct: 0,
-    explanation: "サブエージェントは特定の役割に特化した「別働隊」です。メインの会話を汚さずに、調査や専門作業を並行させられます。指示を出すだけでメインのClaudeが自動で呼び出します。"
+    correct: 2,
+    explanation: ".claude/settings.local.json が個人用のローカル設定で、Claude Code が自動で読み込み、.gitignore 対象として扱われます。他の名前は一般的な命名ではなく、自動読込もされません。"
   },
   {
     id: 19,
-    category: "tips",
-    question: "Claude に依頼するとき、失敗しにくいやり方は？",
+    category: "settings",
+    type: "choice",
+    question: "「ファイル編集後に自動でフォーマッタを走らせる」のように、特定のタイミングに自動処理を挟む仕組みを何と呼ぶ？",
     options: [
-      "全部まとめて一気にお願いする",
-      "小さく分けて、1ステップずつ確認しながら進める",
-      "指示は最小限にして、あとは察してもらう",
-      "夜中にお願いする"
+      "Triggers",
+      "Webhooks",
+      "Listeners",
+      "Hooks"
     ],
-    correct: 1,
-    explanation: "大きな依頼はミスが起きやすく、修正も大変です。「まずA、次にB」と小さく分けて進めると、途中で軌道修正でき、結果的に早く正確に終わります。"
+    correct: 3,
+    explanation: "Claude Code のこの仕組みは Hooks と呼びます。PreToolUse / PostToolUse / SessionStart / Stop などのタイミングを指定して、シェルコマンドを実行できます。"
   },
   {
     id: 20,
-    category: "tips",
-    question: "Claude Code にインターネットの情報（最新ドキュメントなど）を調べさせたいとき、使える機能は？",
+    category: "settings",
+    type: "choice",
+    question: "GitHub操作やSlack投稿など、外部サービスと Claude を繋ぐための共通規格は？",
     options: [
-      "Web 検索・Web 取得（WebSearch / WebFetch）",
-      "テレパシー",
-      "エスパー機能",
-      "不可能"
+      "REST API",
+      "OAuth 2.0",
+      "GraphQL",
+      "MCP（Model Context Protocol）"
     ],
-    correct: 0,
-    explanation: "Claude Code は WebSearch（検索）や WebFetch（指定 URL の取得）でネット上の情報を参照できます。「最新のXの公式ドキュメントを調べて」のように依頼できます。"
+    correct: 3,
+    explanation: "MCP は AI と外部ツールを繋ぐための共通プロトコルです。REST や GraphQL は汎用のAPI形式、OAuth は認可の仕組みで、MCP とは役割が違います。"
   },
 
-  // ===== セキュリティ (6問) =====
+  // ===== 入力式問題（10問） =====
   {
     id: 21,
-    category: "security",
-    question: "Claude がコマンドを実行しようとすると「許可しますか？」と聞かれます。これはなぜ大事？",
-    options: [
-      "邪魔なだけなので、全部「常に許可」にすべき",
-      "意図しない操作（ファイル削除など）を防ぐための安全装置なので、内容をよく読むべき",
-      "デザイン上の飾り",
-      "広告を出すため"
-    ],
-    correct: 1,
-    explanation: "確認プロンプトは、あなたの環境を守る最後の砦です。特に rm（削除）や git push など「取り返しのつかない操作」は、必ず内容を確認してから許可しましょう。"
+    category: "basic",
+    type: "input",
+    question: "ターミナルで Claude Code の対話セッションを起動するコマンドを入力してください。",
+    accepted: ["claude"],
+    hint: "コマンド名のみ。オプションは不要。",
+    explanation: "`claude` と入力するだけで起動します。作業対象のフォルダに `cd` で移動してから起動するのが基本です。"
   },
   {
     id: 22,
-    category: "security",
-    question: "API キーやパスワードが書かれた「.env」ファイルを Claude に見せるときは？",
-    options: [
-      "気にせずそのまま見せる",
-      "基本的には見せない。見せる場合も、ダミー値に置き換えるなど注意する",
-      "SNS にも投稿する",
-      "ブログに載せる"
-    ],
-    correct: 1,
-    explanation: "API キーやパスワードは外に漏れると不正利用されます。.env などの機密ファイルは共有しない、どうしても必要なら値をマスクするのが鉄則です。"
+    category: "slash",
+    type: "input",
+    question: "現在の会話文脈をリセットするスラッシュコマンドを入力してください。",
+    accepted: ["/clear"],
+    hint: "スラッシュ「/」で始まります。",
+    explanation: "`/clear` で会話履歴をクリアできます。話題が変わる時や、前の文脈に引きずられた応答が続く時に使います。"
   },
   {
     id: 23,
-    category: "security",
-    question: "「--dangerously-skip-permissions」という起動オプションはどんな効果？",
-    options: [
-      "画面を暗くする",
-      "確認プロンプトをすべてスキップする（危険度が高いので通常は使わない）",
-      "動作を速くする魔法",
-      "テーマを変える"
-    ],
-    correct: 1,
-    explanation: "名前のとおり「危険なので権限確認を飛ばす」オプションです。信頼できる隔離環境（コンテナなど）以外では使わないのが安全です。"
+    category: "slash",
+    type: "input",
+    question: "プロジェクトを解析して CLAUDE.md を自動生成するスラッシュコマンドを入力してください。",
+    accepted: ["/init"],
+    hint: "スラッシュ「/」で始まる4文字。",
+    explanation: "`/init` を実行すると、プロジェクト構成を分析してCLAUDE.mdの雛形を生成してくれます。最初の1回だけ実行するのが一般的です。"
   },
   {
     id: 24,
-    category: "security",
-    question: "よく知らない人が作ったリポジトリを Claude Code で開くときの注意は？",
-    options: [
-      "すぐにすべて「常に許可」にする",
-      "CLAUDE.md などに悪意のある指示（プロンプトインジェクション）が仕込まれている可能性があるので慎重に",
-      "中身を確認せずに実行する",
-      "特に気にしなくていい"
-    ],
-    correct: 1,
-    explanation: "外部のプロジェクトには、AI を操るような悪意ある指示が隠れていることがあります（プロンプトインジェクション）。初回は「まず読むだけ」にして、内容を確認してから作業を進めましょう。"
+    category: "slash",
+    type: "input",
+    question: "トークン使用量と料金を表示するスラッシュコマンドを入力してください。",
+    accepted: ["/cost"],
+    hint: "スラッシュ「/」から始まる、英語の「費用」。",
+    explanation: "`/cost` でセッション中のトークン使用量とおおよその料金が確認できます。長時間の作業時は定期的にチェックしましょう。"
   },
   {
     id: 25,
-    category: "security",
-    question: "Claude に git の操作を頼むとき、特に慎重にすべき操作は？",
-    options: [
-      "git status（状態を見るだけ）",
-      "git log（履歴を見るだけ）",
-      "git push --force（リモートを強制的に上書き）",
-      "git diff（差分を見るだけ）"
-    ],
-    correct: 2,
-    explanation: "「git push --force」は他人の変更も上書きしてしまう破壊的な操作です。「git reset --hard」「rm -rf」「branch -D」なども同様に、実行前に必ず内容を確認しましょう。"
+    category: "slash",
+    type: "input",
+    question: "過去の会話を選んで再開するスラッシュコマンドを入力してください。",
+    accepted: ["/resume"],
+    hint: "英語の「再開」。",
+    explanation: "`/resume` で過去のセッション一覧が表示され、選んで続きから再開できます。起動時に `claude --resume` としても同じ動作になります。"
   },
   {
     id: 26,
-    category: "security",
-    question: "うっかり機密ファイルを Claude に見せてしまったら、どうするのが良い？",
-    options: [
-      "そのまま放置",
-      "漏れた可能性のあるパスワード・API キーはすぐに無効化して再発行する",
-      "見なかったことにする",
-      "SNS で謝罪する"
-    ],
-    correct: 1,
-    explanation: "一度外に出た秘密情報は戻せません。「すぐに無効化して作り直す（ローテート）」のが最も安全な対処です。普段から .gitignore で保護し、事故を起こさない設計が理想です。"
+    category: "slash",
+    type: "input",
+    question: "Claude Code を安全に終了するスラッシュコマンドを入力してください。",
+    accepted: ["/exit", "/quit"],
+    hint: "英語の「出る」。2種類どちらでも可。",
+    explanation: "`/exit` または `/quit` で終了できます。Ctrl + D でも同様です。会話履歴は自動保存されるので `/resume` で再開可能です。"
   },
-
-  // ===== 設定・カスタマイズ (4問) =====
   {
     id: 27,
-    category: "settings",
-    question: "使用するモデル（Opus / Sonnet / Haiku など）を切り替えるコマンドは？",
-    options: [
-      "/model",
-      "/switch",
-      "/ai",
-      "/brain"
-    ],
-    correct: 0,
-    explanation: "「/model」で現在のモデルを確認・変更できます。難しい作業は賢いモデル、軽い作業は高速なモデル、と使い分けると料金とスピードのバランスが取れます。"
+    category: "slash",
+    type: "input",
+    question: "会話を要約して文脈を圧縮するスラッシュコマンドを入力してください。",
+    accepted: ["/compact"],
+    hint: "英語の「コンパクトにする」。",
+    explanation: "`/compact` は会話を要約して文脈を軽くします。長時間の作業で応答速度が落ちてきた時に有効です。"
   },
   {
     id: 28,
-    category: "settings",
-    question: "自分専用の設定（許可リストや環境変数）を書くファイル名は？",
-    options: [
-      "config.txt",
-      "settings.json",
-      "memo.md",
-      "readme.doc"
-    ],
-    correct: 1,
-    explanation: "「~/.claude/settings.json」（ユーザー全体）や「.claude/settings.json」（プロジェクト共通）、「.claude/settings.local.json」（自分だけ・Git に含めない）で細かく設定できます。"
+    category: "basic",
+    type: "input",
+    question: "会話で `src/app.js` というファイルを Claude に参照させたい。入力すべき記法は？",
+    accepted: ["@src/app.js"],
+    hint: "ファイルパスの先頭にある記号を付けます。",
+    explanation: "`@` を先頭に付けると、そのパスのファイルを参照できます。入力中に候補が出るのでタイポを防げます。"
   },
   {
     id: 29,
-    category: "settings",
-    question: "「Claude が特定の操作をする前後に、自動で何かを実行する」仕組みを何と呼ぶ？",
-    options: [
-      "フック（Hooks）",
-      "ボタン",
-      "リンク",
-      "タグ"
-    ],
-    correct: 0,
-    explanation: "Hooks は「ファイル保存後に自動でテスト」「コマンド実行前にチェック」など、決まったタイミングで自動処理を差し込める仕組みです。設定は settings.json に書きます。"
+    category: "slash",
+    type: "input",
+    question: "使用するモデル（Opus / Sonnet / Haiku 等）を切り替えるスラッシュコマンドを入力してください。",
+    accepted: ["/model"],
+    hint: "英語の「モデル」。",
+    explanation: "`/model` で現在のモデル確認・変更ができます。難しい作業は賢いモデル、軽い作業は高速なモデルと使い分けると効率的です。"
   },
   {
     id: 30,
     category: "settings",
-    question: "Claude Code の機能を外部サービス（GitHub や Slack など）と連携させて拡張する仕組みは？",
-    options: [
-      "MCP（Model Context Protocol）サーバー",
-      "LAN ケーブル",
-      "SD カード",
-      "Bluetooth"
+    type: "input",
+    question: "npm を使って Claude Code をグローバルインストールするコマンドを入力してください。",
+    accepted: [
+      "npm install -g @anthropic-ai/claude-code",
+      "npm i -g @anthropic-ai/claude-code"
     ],
-    correct: 0,
-    explanation: "MCP は Claude と外部ツールをつなぐ共通ルールです。GitHub 操作・データベース閲覧・Slack 送信など、目的に合ったサーバーを追加すると Claude ができることが広がります。"
+    hint: "グローバルは `-g` オプション。パッケージ名は @anthropic-ai/claude-code",
+    explanation: "`npm install -g @anthropic-ai/claude-code`（または省略形 `npm i -g ...`）でインストールできます。macOS で権限エラーが出る場合は `sudo` を付けるか、nvm で Node を管理すると解決しやすいです。"
   }
 ];

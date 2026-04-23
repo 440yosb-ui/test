@@ -138,6 +138,11 @@
     startSession(qs, '復習');
   }
 
+  // ---- 入力正規化（前後空白削除・連続空白を1つに） ----
+  function normalizeInput(s) {
+    return String(s || '').trim().replace(/\s+/g, ' ');
+  }
+
   // ---- 問題画面の描画 ----
   function renderQuestion() {
     const q = session.questions[session.index];
@@ -153,6 +158,18 @@
 
     const optsEl = document.getElementById('options');
     optsEl.innerHTML = '';
+
+    if (q.type === 'input') {
+      renderInputQuestion(q, optsEl);
+    } else {
+      renderChoiceQuestion(q, optsEl);
+    }
+
+    document.getElementById('quiz-feedback').classList.remove('show');
+  }
+
+  // ---- 4択の描画 ----
+  function renderChoiceQuestion(q, optsEl) {
     const labels = ['A', 'B', 'C', 'D'];
     q.options.forEach((opt, i) => {
       const btn = document.createElement('button');
@@ -161,16 +178,74 @@
       btn.addEventListener('click', () => selectOption(i, btn));
       optsEl.appendChild(btn);
     });
-
-    document.getElementById('quiz-feedback').classList.remove('show');
   }
 
-  // ---- 回答選択 ----
+  // ---- 入力式の描画 ----
+  function renderInputQuestion(q, optsEl) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'input-wrapper';
+
+    const hint = document.createElement('div');
+    hint.className = 'input-hint';
+    hint.textContent = q.hint ? '💬 ヒント: ' + q.hint : '';
+    if (q.hint) wrapper.appendChild(hint);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'code-input';
+    input.placeholder = 'ここに入力...';
+    input.autocomplete = 'off';
+    input.autocapitalize = 'none';
+    input.spellcheck = false;
+    wrapper.appendChild(input);
+
+    const submit = document.createElement('button');
+    submit.className = 'btn btn-primary';
+    submit.textContent = '答え合わせ';
+    submit.addEventListener('click', () => submitInput(input.value));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitInput(input.value);
+      }
+    });
+    wrapper.appendChild(submit);
+
+    optsEl.appendChild(wrapper);
+    setTimeout(() => input.focus(), 50);
+  }
+
+  // ---- 入力式の回答判定 ----
+  function submitInput(value) {
+    const q = session.questions[session.index];
+    const user = normalizeInput(value);
+    if (!user) return; // 空回答は無視
+    const accepted = (q.accepted || []).map(normalizeInput);
+    const isCorrect = accepted.includes(user);
+
+    // 入力欄を無効化
+    const input = document.querySelector('.code-input');
+    const btn = document.querySelector('.input-wrapper .btn');
+    if (input) {
+      input.disabled = true;
+      input.classList.add(isCorrect ? 'correct' : 'wrong');
+    }
+    if (btn) btn.disabled = true;
+
+    recordAnswer(q, isCorrect);
+
+    // フィードバック（正解例を解説に添える）
+    const extra = isCorrect
+      ? ''
+      : '\n\n正解例: ' + (q.accepted[0] || '');
+    showFeedback(isCorrect, q.explanation + extra);
+  }
+
+  // ---- 4択の回答判定 ----
   function selectOption(selectedIndex, buttonEl) {
     const q = session.questions[session.index];
     const isCorrect = selectedIndex === q.correct;
 
-    // 全てのボタンを無効化、正解と不正解を表示
     const optionButtons = document.querySelectorAll('#options .option');
     optionButtons.forEach((btn, i) => {
       btn.classList.add('disabled');
@@ -178,7 +253,12 @@
       else if (i === selectedIndex) btn.classList.add('wrong');
     });
 
-    // 進捗の更新
+    recordAnswer(q, isCorrect);
+    showFeedback(isCorrect, q.explanation);
+  }
+
+  // ---- 進捗に記録 ----
+  function recordAnswer(q, isCorrect) {
     const prev = progress.answers[q.id];
     progress.answers[q.id] = {
       correct: isCorrect,
@@ -197,11 +277,12 @@
     updateStreak(progress);
     saveProgress(progress);
 
-    // 進捗バーを次の位置まで進める
     const pct = ((session.index + 1) / session.questions.length) * 100;
     document.getElementById('progress-fill').style.width = pct + '%';
+  }
 
-    // フィードバック表示
+  // ---- フィードバック表示 ----
+  function showFeedback(isCorrect, explanationText) {
     const fb = document.getElementById('quiz-feedback');
     const title = document.getElementById('feedback-title');
     const icon = document.getElementById('feedback-icon');
@@ -215,7 +296,7 @@
       title.classList.add('wrong');
       icon.textContent = '💡';
     }
-    document.getElementById('feedback-explanation').textContent = q.explanation;
+    document.getElementById('feedback-explanation').textContent = explanationText;
 
     const nextBtn = document.getElementById('btn-next');
     nextBtn.textContent = (session.index + 1 >= session.questions.length) ? '結果を見る' : '次の問題へ';
