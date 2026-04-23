@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Claude Code クイズ" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <title>Claude Code 一問一答クイズ</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ホーム画面 -->
+    <section id="home-screen" class="screen active">
+      <header class="app-header">
+        <h1>Claude Code<br/>学習クイズ</h1>
+        <p class="subtitle">スキマ時間で身につける</p>
+      </header>
+
+      <div class="stats-card" id="home-stats">
+        <div class="stat">
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">学習済み</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-accuracy">–</div>
+          <div class="stat-label">正答率</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" id="stat-streak">0</div>
+          <div class="stat-label">連続日数</div>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="btn-random">
+          <span class="btn-title">ランダム10問</span>
+          <span class="btn-sub">電車で1セッション</span>
+        </button>
+        <button class="btn btn-secondary" id="btn-review">
+          <span class="btn-title">間違えた問題を復習</span>
+          <span class="btn-sub" id="review-count">0問</span>
+        </button>
+      </div>
+
+      <h2 class="section-title">カテゴリから選ぶ</h2>
+      <div class="category-list" id="category-list"></div>
+
+      <div class="footer-actions">
+        <button class="btn-text" id="btn-stats">詳しい進捗を見る</button>
+        <button class="btn-text btn-danger" id="btn-reset">進捗をリセット</button>
+      </div>
+    </section>
+
+    <!-- クイズ画面 -->
+    <section id="quiz-screen" class="screen">
+      <header class="quiz-header">
+        <button class="btn-icon" id="btn-back">✕</button>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">1 / 10</div>
+      </header>
+
+      <div class="quiz-body">
+        <div class="category-badge" id="quiz-category"></div>
+        <h2 class="question-text" id="question-text"></h2>
+        <div class="options" id="options"></div>
+      </div>
+
+      <div class="quiz-feedback" id="quiz-feedback">
+        <div class="feedback-header">
+          <span class="feedback-icon" id="feedback-icon"></span>
+          <span class="feedback-title" id="feedback-title"></span>
+        </div>
+        <div class="feedback-explanation" id="feedback-explanation"></div>
+        <button class="btn btn-primary" id="btn-next">次の問題へ</button>
+      </div>
+    </section>
+
+    <!-- 結果画面 -->
+    <section id="result-screen" class="screen">
+      <header class="app-header">
+        <h1 id="result-emoji">🎉</h1>
+        <h2 id="result-title">お疲れさまでした！</h2>
+      </header>
+
+      <div class="result-card">
+        <div class="result-score">
+          <span id="result-correct">0</span>
+          <span class="result-total">/ <span id="result-total">10</span> 問正解</span>
+        </div>
+        <div class="result-percent" id="result-percent">0%</div>
+      </div>
+
+      <div class="result-message" id="result-message"></div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="btn-again">もう一度</button>
+        <button class="btn btn-secondary" id="btn-home">ホームに戻る</button>
+      </div>
+    </section>
+
+    <!-- 進捗画面 -->
+    <section id="stats-screen" class="screen">
+      <header class="quiz-header">
+        <button class="btn-icon" id="btn-stats-back">←</button>
+        <h2 class="screen-title">学習の進捗</h2>
+      </header>
+
+      <div class="stats-detail">
+        <div class="stats-card">
+          <div class="stat">
+            <div class="stat-value" id="detail-answered">0</div>
+            <div class="stat-label">解いた問題</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="detail-correct">0</div>
+            <div class="stat-label">正解数</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="detail-accuracy">–</div>
+            <div class="stat-label">正答率</div>
+          </div>
+        </div>
+
+        <h3 class="section-title">カテゴリ別</h3>
+        <div class="category-stats" id="category-stats"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
