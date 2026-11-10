@@ -69,4 +69,6 @@ localStorage キー: `claude-code-quiz-progress-v1`
 - 「仕入れ上限」= 販売価格 − 販売手数料 − FBA手数料 − その他経費 − 欲しい利益。
 - 各行に Google（型式で検索）・楽天・Yahoo!・Keepa へのリンクボタンを表示。
 - 楽天/Yahoo! の最安値取得は、利用者が画面で入力した ID を使ってブラウザから直接問い合わせる。ID は localStorage（`sedori-research-settings-v1`）にのみ保存し、**リポジトリには絶対に書かない**。実際の ID での動作は未確認（Yahoo! はブラウザから直接つなげない可能性あり）。
+- 出品チェック: 商品(ASIN)ごとに「出品できる/申請で通った/書類が必要/不可」を記録し、メーカー別に集計する。保存先は localStorage（`sedori-listing-checks-v1`）。JSON ファイルでのバックアップ/復元あり（復元は既存の記録を上書きせず追加のみ）。
+- **スマホ（iPhone）操作が前提**。幅 760px 以下では表をカード表示に切り替える。ボタンは 44px 以上の高さを保つ。
 - 確認: `node --check sedori/app.js`

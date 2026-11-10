@@ -52,6 +52,14 @@
       <label>ブランド名・商品名で探す
         <input type="text" id="f-keyword" placeholder="例: 富士フイルム"></label>
     </div>
+    <label class="check-filter">出品チェックで絞る
+      <select id="f-checkFilter">
+        <option value="all">すべて表示</option>
+        <option value="unchecked">まだチェックしていない商品だけ</option>
+        <option value="passed">出品できると確認した商品だけ</option>
+        <option value="goodBrand">通りやすいメーカーの商品だけ</option>
+      </select>
+    </label>
     <label class="check"><input type="checkbox" id="f-noAmazon"> Amazon本体が販売している商品を除く（価格競争で勝ちにくいため）</label>
     <p class="note">「仕入れ上限」＝ 販売価格 − 販売手数料 − FBA手数料 − その他の経費 − 欲しい利益。<strong>この金額以下で仕入れられれば、欲しい利益が残ります。</strong></p>
     </details>
@@ -103,11 +111,32 @@
           <th data-sort="limit" class="num">仕入れ上限</th>
           <th>他サイトで探す</th>
           <th>他サイトの最安値</th>
+          <th>出品チェック</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
     <p id="more" class="note" hidden></p>
+  </section>
+
+  <section class="card">
+    <h2>5. メーカー別の出品チェック記録</h2>
+    <p class="note">商品ごとに「出品チェック」を記録すると、どのメーカーが通りやすいかがここにたまっていきます。「通りやすい」＝通った件数が、通らなかった件数より多いメーカーです。</p>
+    <p id="brand-empty" class="note">まだ記録がありません。</p>
+    <div class="table-wrap">
+      <table id="brand-table" class="plain" hidden>
+        <thead><tr><th>メーカー</th><th class="num">出品できる</th><th class="num">申請で通った</th><th class="num">書類が必要</th><th class="num">不可</th><th>判定</th></tr></thead>
+        <tbody id="brand-rows"></tbody>
+      </table>
+    </div>
+    <div class="backup">
+      <button type="button" id="export-btn" class="sub-btn">記録をファイルに保存（バックアップ）</button>
+      <label class="sub-btn">保存したファイルから戻す
+        <input type="file" id="import-input" accept=".json,application/json" hidden>
+      </label>
+      <span id="backup-status" class="status"></span>
+    </div>
+    <p class="note">記録はこのスマホのブラウザの中に保存されます。ブラウザの履歴・データを消したり、長期間開かなかったりすると消えることがあるため、ときどきバックアップしてください。</p>
   </section>
 </main>
 

@@ -24,7 +24,7 @@
 
   var DEFAULTS = {
     minSold: 100, maxSellers: 15, minPrice: 1000, maxPrice: '', minProfit: 200, otherCost: 50,
-    defPct: 10, defFba: 500, keyword: '', noAmazon: true,
+    defPct: 10, defFba: 500, keyword: '', noAmazon: true, checkFilter: 'all',
     rakutenAppId: '', rakutenKey: '', yahooAppId: '',
     rakutenUrl: 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601',
     mapping: {}
@@ -39,6 +39,42 @@
   var sortDesc = true;
   var shopCache = {};     // 取得済みの他サイト価格
   var lastCall = 0;
+
+  // 出品チェックの記録。商品番号(ASIN)ごとに「出品できたか」を覚えておく。
+  var CHECK_KEY = 'sedori-listing-checks-v1';
+  var STATUSES = [
+    { key: 'ok', label: '出品できる', pass: true },
+    { key: 'applied', label: '申請で通った', pass: true },
+    { key: 'docs', label: '書類が必要', pass: false },
+    { key: 'ng', label: '不可', pass: false }
+  ];
+  var checks = loadChecks();
+
+  function loadChecks() {
+    try { return JSON.parse(localStorage.getItem(CHECK_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function saveChecks() {
+    try { localStorage.setItem(CHECK_KEY, JSON.stringify(checks)); } catch (e) { /* 保存できなくても動作は続ける */ }
+  }
+  function isPass(status) {
+    return STATUSES.some(function (s) { return s.key === status && s.pass; });
+  }
+  function brandKey(name) { return String(name || '').trim().toLowerCase(); }
+
+  // メーカーごとに、通った件数・通らなかった件数を数える
+  function brandStats() {
+    var stats = {};
+    Object.keys(checks).forEach(function (asin) {
+      var c = checks[asin];
+      var k = brandKey(c.brand);
+      if (!k) return;
+      if (!stats[k]) stats[k] = { name: c.brand, ok: 0, applied: 0, docs: 0, ng: 0, pass: 0, fail: 0 };
+      stats[k][c.status]++;
+      if (isPass(c.status)) stats[k].pass++; else stats[k].fail++;
+    });
+    return stats;
+  }
+  function isGoodBrand(stat) { return !!stat && stat.pass > stat.fail; }
 
   function $(id) { return document.getElementById(id); }
 
@@ -200,7 +236,13 @@
     var minSold = settingNum('minSold'), maxSellers = settingNum('maxSellers');
     var minPrice = settingNum('minPrice'), maxPrice = settingNum('maxPrice');
     var kw = String(settings.keyword || '').trim().toLowerCase();
+    var cf = settings.checkFilter;
+    var stats = cf === 'goodBrand' ? brandStats() : null;
     return items.filter(function (it) {
+      var chk = checks[it.asin];
+      if (cf === 'unchecked' && chk) return false;
+      if (cf === 'passed' && !(chk && isPass(chk.status))) return false;
+      if (cf === 'goodBrand' && !isGoodBrand(stats[brandKey(it.brand)])) return false;
       if (it.price == null) return false;                 // 価格が不明な商品は計算できない
       if (it.limit == null || it.limit <= 0) return false; // どう仕入れても利益が残らない
       if (minSold != null && minSold > 0 && (it.sold == null || it.sold < minSold)) return false;
@@ -257,6 +299,7 @@
     $('bulk-btn').hidden = all.length === 0 || !hasShopApi();
     $('sort-box').hidden = all.length === 0;
 
+    var stats = brandStats();
     var tbody = $('rows');
     tbody.textContent = '';
     shown.forEach(function (it) {
@@ -293,10 +336,117 @@
       tr.appendChild(tdShop);
 
       // スマホではカード表示になり見出し行が消えるため、各マスに項目名を持たせる
-      ['', '販売価格', '月の販売数', '出品者', '手数料', '仕入れ上限', '', '他サイトの最安値'].forEach(function (label, i) {
+      var tdCheck = el('td');
+      renderCheckCell(tdCheck, it, stats);
+      tr.appendChild(tdCheck);
+
+      ['', '販売価格', '月の販売数', '出品者', '手数料', '仕入れ上限', '', '他サイトの最安値', '出品チェック'].forEach(function (label, i) {
         if (label) tr.children[i].dataset.label = label;
       });
       tbody.appendChild(tr);
+    });
+  }
+
+  // ---------- 出品チェックの記録 ----------
+
+  function copyText(text, btn) {
+    var done = function () {
+      var old = btn.textContent;
+      btn.textContent = 'コピーしました';
+      setTimeout(function () { btn.textContent = old; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { window.prompt('この番号をコピーしてください', text); });
+    } else window.prompt('この番号をコピーしてください', text);
+  }
+
+  function renderCheckCell(td, it, stats) {
+    td.textContent = '';
+    var tools = el('div');
+    var copy = el('button', 'mini', '商品番号をコピー');
+    copy.type = 'button';
+    copy.title = 'セラーアプリの検索欄に貼り付けて、出品できるか確認します';
+    copy.addEventListener('click', function () { copyText(it.asin, copy); });
+    tools.appendChild(copy);
+    tools.appendChild(link('セラーセントラルで確認', 'https://sellercentral.amazon.co.jp/product-search/search?q=' + encodeURIComponent(it.asin), 'mini'));
+    td.appendChild(tools);
+
+    var current = checks[it.asin] && checks[it.asin].status;
+    var box = el('div');
+    STATUSES.forEach(function (s) {
+      var b = el('button', 'st ' + (s.pass ? 'good' : 'bad') + (current === s.key ? ' on' : ''), s.label);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', current === s.key ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        // 同じボタンをもう一度押すと記録を取り消す
+        if (current === s.key) delete checks[it.asin];
+        else checks[it.asin] = { status: s.key, brand: it.brand, title: it.title, date: new Date().toISOString().slice(0, 10) };
+        saveChecks();
+        // 一覧全体は並べ直さない（作業中に商品が動くと押し間違えるため）。このマスと集計だけ更新する。
+        renderCheckCell(td, it, brandStats());
+        renderBrands();
+      });
+      box.appendChild(b);
+    });
+    td.appendChild(box);
+
+    var st = stats[brandKey(it.brand)];
+    if (st) td.appendChild(el('div', 'brand-hint', 'このメーカーの記録: 通った ' + st.pass + '件 ／ 通らなかった ' + st.fail + '件'));
+  }
+
+  function renderBrands() {
+    var stats = brandStats();
+    var list = Object.keys(stats).map(function (k) { return stats[k]; })
+      .sort(function (a, b) { return (b.pass - b.fail) - (a.pass - a.fail) || a.name.localeCompare(b.name, 'ja'); });
+    $('brand-empty').hidden = list.length > 0;
+    $('brand-table').hidden = list.length === 0;
+    var tbody = $('brand-rows');
+    tbody.textContent = '';
+    list.forEach(function (s) {
+      var tr = document.createElement('tr');
+      tr.appendChild(el('td', '', s.name));
+      ['ok', 'applied', 'docs', 'ng'].forEach(function (k) { tr.appendChild(el('td', 'num', String(s[k]))); });
+      tr.appendChild(isGoodBrand(s) ? el('td', 'judge-good', '通りやすい') : el('td', 'judge-bad', s.pass ? '半々' : '通りにくい'));
+      tbody.appendChild(tr);
+    });
+  }
+
+  function exportBackup() {
+    var data = { type: 'sedori-backup', version: 1, savedAt: new Date().toISOString(), checks: checks };
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = 'sedori-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    $('backup-status').className = 'status';
+    $('backup-status').textContent = Object.keys(checks).length + '件の記録を保存しました。';
+  }
+
+  function importBackup(file) {
+    var status = $('backup-status');
+    file.text().then(function (text) {
+      var data = JSON.parse(text);
+      if (!data || data.type !== 'sedori-backup' || typeof data.checks !== 'object' || !data.checks) throw new Error('形式が違います');
+      var added = 0;
+      Object.keys(data.checks).forEach(function (asin) {
+        var c = data.checks[asin];
+        var valid = c && STATUSES.some(function (s) { return s.key === c.status; });
+        // いまスマホにある記録は消さず、ファイルにしかない記録だけを足す
+        if (valid && !checks[asin]) {
+          checks[asin] = { status: c.status, brand: String(c.brand || ''), title: String(c.title || ''), date: String(c.date || '') };
+          added++;
+        }
+      });
+      saveChecks();
+      status.className = 'status';
+      status.textContent = added + '件の記録を戻しました。';
+      renderBrands();
+      render();
+    }).catch(function () {
+      status.className = 'status err';
+      status.textContent = 'このファイルは読み込めませんでした。バックアップで保存したファイルを選んでください。';
     });
   }
 
@@ -466,6 +616,15 @@
     $('file-input').addEventListener('change', function (e) {
       if (e.target.files[0]) handleFile(e.target.files[0]);
     });
+    var cf = $('f-checkFilter');
+    cf.value = settings.checkFilter;
+    cf.addEventListener('change', function () { settings.checkFilter = cf.value; saveSettings(); render(); });
+    $('export-btn').addEventListener('click', exportBackup);
+    $('import-input').addEventListener('change', function (e) {
+      if (e.target.files[0]) importBackup(e.target.files[0]);
+      e.target.value = '';
+    });
+    renderBrands();
     $('bulk-btn').addEventListener('click', bulkFetch);
     $('test-btn').addEventListener('click', testConnection);
 
