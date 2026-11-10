@@ -255,6 +255,7 @@
     $('more').hidden = all.length <= MAX_ROWS;
     $('more').textContent = '件数が多いため、上位 ' + MAX_ROWS + ' 件だけを表示しています。条件を厳しくすると絞り込めます。';
     $('bulk-btn').hidden = all.length === 0 || !hasShopApi();
+    $('sort-box').hidden = all.length === 0;
 
     var tbody = $('rows');
     tbody.textContent = '';
@@ -291,6 +292,10 @@
       renderShopCell(tdShop, it);
       tr.appendChild(tdShop);
 
+      // スマホではカード表示になり見出し行が消えるため、各マスに項目名を持たせる
+      ['', '販売価格', '月の販売数', '出品者', '手数料', '仕入れ上限', '', '他サイトの最安値'].forEach(function (label, i) {
+        if (label) tr.children[i].dataset.label = label;
+      });
       tbody.appendChild(tr);
     });
   }
@@ -471,6 +476,12 @@
         else { sortKey = k; sortDesc = k !== 'title' && k !== 'sellers'; }
         render();
       });
+    });
+    $('sort-select').addEventListener('change', function (e) {
+      var parts = e.target.value.split(':');
+      sortKey = parts[0];
+      sortDesc = parts[1] === 'd';
+      render();
     });
   }
 

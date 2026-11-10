@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>仕入れリサーチツール</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -30,7 +30,8 @@
   </section>
 
   <section class="card">
-    <h2>2. 絞り込みの条件</h2>
+    <details open id="filter-box">
+    <summary class="h2">2. 絞り込みの条件（タップで開閉）</summary>
     <div class="grid">
       <label>月に売れている個数（最低）
         <input type="number" id="f-minSold" min="0" step="10"><small>個以上</small></label>
@@ -53,6 +54,7 @@
     </div>
     <label class="check"><input type="checkbox" id="f-noAmazon"> Amazon本体が販売している商品を除く（価格競争で勝ちにくいため）</label>
     <p class="note">「仕入れ上限」＝ 販売価格 − 販売手数料 − FBA手数料 − その他の経費 − 欲しい利益。<strong>この金額以下で仕入れられれば、欲しい利益が残ります。</strong></p>
+    </details>
   </section>
 
   <section class="card">
@@ -78,8 +80,17 @@
   <section class="card">
     <div class="result-head">
       <h2>4. 候補の商品 <span id="count"></span></h2>
-      <button type="button" id="bulk-btn" class="sub-btn" hidden>上から20件の他サイト価格をまとめて取得</button>
+      <label class="sort-box" id="sort-box" hidden>並び順
+        <select id="sort-select">
+          <option value="sold:d">月の販売数が多い順</option>
+          <option value="limit:d">仕入れ上限が高い順</option>
+          <option value="price:a">販売価格が安い順</option>
+          <option value="price:d">販売価格が高い順</option>
+          <option value="sellers:a">出品者が少ない順</option>
+        </select>
+      </label>
     </div>
+    <button type="button" id="bulk-btn" class="sub-btn" hidden>上から20件の他サイト価格をまとめて取得</button>
     <p id="empty" class="note">ファイルを読み込むと、ここに候補が表示されます。</p>
     <div class="table-wrap">
       <table id="result" hidden>
