@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>仕入れリサーチツール</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>仕入れリサーチツール</h1>
+  <p class="lead">Keepaからダウンロードした商品一覧を読み込み、「よく売れていて、利益が出る」商品だけに絞り込みます。</p>
+</header>
+
+<main>
+  <section class="card" id="load-card">
+    <h2>1. Keepaのファイルを読み込む</h2>
+    <p class="note">Keepaの「Product Finder」で検索 →「エクスポート」→ <strong>CSV形式</strong>で保存したファイルを選んでください。</p>
+    <label class="file-btn">
+      ファイルを選ぶ
+      <input type="file" id="file-input" accept=".csv,text/csv">
+    </label>
+    <span id="file-status" class="status"></span>
+
+    <details id="mapping-box" hidden>
+      <summary>列の割り当てを確認・変更する（数字がおかしいときに開いてください）</summary>
+      <p class="note">ファイルのどの列を、どの項目として使うかの設定です。自動で選ばれていますが、違っていたら選び直してください。</p>
+      <div id="mapping-grid" class="grid"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>2. 絞り込みの条件</h2>
+    <div class="grid">
+      <label>月に売れている個数（最低）
+        <input type="number" id="f-minSold" min="0" step="10"><small>個以上</small></label>
+      <label>出品者の数（最大）
+        <input type="number" id="f-maxSellers" min="0" step="1"><small>人以下（空欄で制限なし）</small></label>
+      <label>販売価格（下限）
+        <input type="number" id="f-minPrice" min="0" step="100"><small>円以上</small></label>
+      <label>販売価格（上限）
+        <input type="number" id="f-maxPrice" min="0" step="100"><small>円以下（空欄で制限なし）</small></label>
+      <label>1個あたり欲しい利益
+        <input type="number" id="f-minProfit" min="0" step="50"><small>円</small></label>
+      <label>その他の経費（1個あたり）
+        <input type="number" id="f-otherCost" min="0" step="10"><small>円（倉庫への送料など）</small></label>
+      <label>販売手数料の割合（不明なとき）
+        <input type="number" id="f-defPct" min="0" max="100" step="1"><small>％</small></label>
+      <label>FBA手数料（不明なとき）
+        <input type="number" id="f-defFba" min="0" step="10"><small>円</small></label>
+      <label>ブランド名・商品名で探す
+        <input type="text" id="f-keyword" placeholder="例: 富士フイルム"></label>
+    </div>
+    <label class="check"><input type="checkbox" id="f-noAmazon"> Amazon本体が販売している商品を除く（価格競争で勝ちにくいため）</label>
+    <p class="note">「仕入れ上限」＝ 販売価格 − 販売手数料 − FBA手数料 − その他の経費 − 欲しい利益。<strong>この金額以下で仕入れられれば、欲しい利益が残ります。</strong></p>
+  </section>
+
+  <section class="card">
+    <h2>3. 他サイトの価格を自動表示する設定（任意）</h2>
+    <details>
+      <summary>楽天市場・Yahoo!ショッピングの設定を開く</summary>
+      <p class="note">各サービスに無料の利用登録をして発行される「ID」を入力すると、最安値を自動で表示できます。入力した内容は、このブラウザの中だけに保存されます。</p>
+      <div class="grid">
+        <label>楽天：アプリID
+          <input type="text" id="s-rakutenAppId" autocomplete="off"></label>
+        <label>楽天：アクセスキー
+          <input type="text" id="s-rakutenKey" autocomplete="off"></label>
+        <label class="wide">楽天：接続先（通常は変更不要）
+          <input type="text" id="s-rakutenUrl" autocomplete="off"></label>
+        <label>Yahoo!：Client ID
+          <input type="text" id="s-yahooAppId" autocomplete="off"></label>
+      </div>
+      <button type="button" id="test-btn" class="sub-btn">接続テスト</button>
+      <span id="test-status" class="status"></span>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="result-head">
+      <h2>4. 候補の商品 <span id="count"></span></h2>
+      <button type="button" id="bulk-btn" class="sub-btn" hidden>上から20件の他サイト価格をまとめて取得</button>
+    </div>
+    <p id="empty" class="note">ファイルを読み込むと、ここに候補が表示されます。</p>
+    <div class="table-wrap">
+      <table id="result" hidden>
+        <thead><tr>
+          <th data-sort="title">商品</th>
+          <th data-sort="price" class="num">販売価格</th>
+          <th data-sort="sold" class="num">月の販売数</th>
+          <th data-sort="sellers" class="num">出品者</th>
+          <th data-sort="fees" class="num">手数料</th>
+          <th data-sort="limit" class="num">仕入れ上限</th>
+          <th>他サイトで探す</th>
+          <th>他サイトの最安値</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p id="more" class="note" hidden></p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
