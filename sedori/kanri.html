@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>利益管理</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <nav class="nav"><a href="index.html">リサーチ</a><a href="kanri.html" class="current">利益管理</a></nav>
+  <h1>利益管理</h1>
+  <p class="lead">仕入れた商品と売れた商品を記録して、利益と在庫を確認します。</p>
+</header>
+
+<main>
+  <section class="card">
+    <div class="result-head">
+      <h2>1. まとめ</h2>
+      <label class="sort-box">期間
+        <select id="period"></select>
+      </label>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span>売上</span><strong id="t-sales">—</strong></div>
+      <div class="tile"><span>Amazon手数料</span><strong id="t-fees">—</strong></div>
+      <div class="tile"><span>売れた分の仕入れ額</span><strong id="t-cost">—</strong></div>
+      <div class="tile main"><span>利益</span><strong id="t-profit">—</strong><small id="t-rate"></small></div>
+      <div class="tile"><span>売れた個数</span><strong id="t-qty">—</strong></div>
+      <div class="tile"><span>売れるまでの平均日数</span><strong id="t-days">—</strong></div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span>いまの在庫</span><strong id="t-stock">—</strong></div>
+      <div class="tile"><span>在庫になっているお金</span><strong id="t-stockValue">—</strong></div>
+    </div>
+    <p class="note">利益 ＝ 売上 − Amazon手数料 − 売れた分の仕入れ額（送料などの経費を含む）。在庫は期間に関係なく、いま残っている分です。</p>
+  </section>
+
+  <section class="card">
+    <details id="add-box">
+      <summary class="h2">2. 仕入れを記録する（タップで開く）</summary>
+      <form id="add-form">
+        <div class="grid">
+          <label class="wide">商品名
+            <input type="text" id="p-title" required></label>
+          <label>メーカー
+            <input type="text" id="p-brand"></label>
+          <label>商品番号（ASIN）
+            <input type="text" id="p-asin" autocapitalize="characters"></label>
+          <label>仕入れ日
+            <input type="date" id="p-date" required></label>
+          <label>仕入れ先
+            <input type="text" id="p-supplier" placeholder="例: 楽天、ビックカメラ"></label>
+          <label>仕入れ値（1個あたり）
+            <input type="number" id="p-unitCost" min="0" step="1" inputmode="numeric" required><small>円</small></label>
+          <label>個数
+            <input type="number" id="p-qty" min="1" step="1" inputmode="numeric" required><small>個</small></label>
+          <label>送料などの経費（合計）
+            <input type="number" id="p-extra" min="0" step="1" inputmode="numeric"><small>円（なければ空欄）</small></label>
+          <label>販売する予定の価格
+            <input type="number" id="p-sellPrice" min="0" step="1" inputmode="numeric"><small>円（1個あたり）</small></label>
+          <label>Amazon手数料の見込み
+            <input type="number" id="p-fee" min="0" step="1" inputmode="numeric"><small>円（1個あたり）</small></label>
+        </div>
+        <button type="submit" class="file-btn">この内容で記録する</button>
+        <span id="add-status" class="status"></span>
+      </form>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="result-head">
+      <h2>3. 仕入れた商品 <span id="lot-count"></span></h2>
+      <label class="sort-box">表示
+        <select id="lot-filter">
+          <option value="stock">在庫があるものだけ</option>
+          <option value="all">すべて</option>
+          <option value="sold">売り切れたものだけ</option>
+        </select>
+      </label>
+    </div>
+    <p id="lot-empty" class="note">まだ記録がありません。上の「2」から仕入れを記録してください。</p>
+    <div id="lots"></div>
+  </section>
+
+  <section class="card">
+    <h2>4. データの保存と書き出し</h2>
+    <div class="backup">
+      <button type="button" id="csv-purchases" class="sub-btn">仕入れの一覧を書き出す（表計算用）</button>
+      <button type="button" id="csv-sales" class="sub-btn">売上の一覧を書き出す（表計算用）</button>
+    </div>
+    <p class="note">書き出したファイルは Excel や Google スプレッドシートで開けます。確定申告のときに、会計ソフトへ入力する元の資料として使えます。</p>
+    <div class="backup">
+      <button type="button" id="export-btn" class="sub-btn">記録をファイルに保存（バックアップ）</button>
+      <label class="sub-btn">保存したファイルから戻す
+        <input type="file" id="import-input" accept=".json,application/json" hidden>
+      </label>
+      <span id="backup-status" class="status"></span>
+    </div>
+    <p class="note"><strong>記録はこのスマホのブラウザの中だけに保存されます。</strong>ブラウザのデータを消したり、長期間開かなかったりすると消えることがあります。お金の記録なので、週に1回はバックアップしてください。</p>
+  </section>
+</main>
+
+<script src="kanri.js"></script>
+</body>
+</html>
