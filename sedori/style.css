@@ -78,6 +78,32 @@ table.plain { min-width: 0; }
 .judge-good { color: var(--good); font-weight: 700; }
 .judge-bad { color: var(--warn); font-weight: 700; }
 
+.nav { display: flex; gap: 8px; margin-bottom: 12px; }
+.nav a { flex: 1; max-width: 200px; text-align: center; padding: 10px; border-radius: 8px; border: 1px solid var(--line);
+  color: var(--text); text-decoration: none; font-weight: 600; background: var(--card); }
+.nav a.current { background: var(--accent); color: #fff; border-color: var(--accent); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; display: flex; flex-direction: column; }
+.tile span { font-size: 12px; color: var(--muted); }
+.tile strong { font-size: 20px; }
+.tile small { font-size: 12px; color: var(--muted); }
+.tile.main { border-color: var(--good); }
+.tile.main strong, .plus { color: var(--good); }
+.minus, .tile.main strong.minus { color: var(--warn); }
+#add-form .file-btn, .sale-form .file-btn { margin-top: 14px; font-size: 16px; }
+.lot { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.lot-title { font-weight: 700; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 10px 0 6px; }
+.facts span { display: block; font-size: 11.5px; color: var(--muted); }
+.lot-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.lot-btns .file-btn { padding: 10px 28px; }
+.sub-btn.danger { color: var(--warn); border-color: var(--line); font-weight: 400; font-size: 13px; }
+.sub-btn.danger:hover { background: var(--warn); color: #fff; }
+.sale-form { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.sale-form .sub-btn { margin-left: 8px; }
+.sale-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--line); }
+input[type=date] { font: inherit; font-size: 16px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--text); width: 100%; min-height: 40px; }
+
 /* スマホ: 表をやめて、商品1つを1枚のカードとして縦に並べる */
 @media (max-width: 760px) {
   body { font-size: 16px; }
@@ -106,5 +132,10 @@ table.plain { min-width: 0; }
   table.plain { font-size: 13px; }
   table.plain th, table.plain td { padding: 6px 4px; }
   .backup .sub-btn { width: 100%; text-align: center; }
+  .nav a { max-width: none; padding: 12px; }
+  .tiles, .facts { grid-template-columns: 1fr 1fr; }
+  .sale-form .grid { grid-template-columns: 1fr; }
+  .sale-form .sub-btn { margin: 8px 0 0; width: 100%; }
+  .lot-btns .file-btn { flex: 1; }
   .mini { padding: 10px 14px; font-size: 14.5px; min-height: 44px; display: inline-flex; align-items: center; margin: 3px 6px 3px 0; }
 }

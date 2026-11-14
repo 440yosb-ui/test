@@ -71,4 +71,5 @@ localStorage キー: `claude-code-quiz-progress-v1`
 - 楽天/Yahoo! の最安値取得は、利用者が画面で入力した ID を使ってブラウザから直接問い合わせる。ID は localStorage（`sedori-research-settings-v1`）にのみ保存し、**リポジトリには絶対に書かない**。実際の ID での動作は未確認（Yahoo! はブラウザから直接つなげない可能性あり）。
 - 出品チェック: 商品(ASIN)ごとに「出品できる/申請で通った/書類が必要/不可」を記録し、メーカー別に集計する。保存先は localStorage（`sedori-listing-checks-v1`）。JSON ファイルでのバックアップ/復元あり（復元は既存の記録を上書きせず追加のみ）。
 - **スマホ（iPhone）操作が前提**。幅 760px 以下では表をカード表示に切り替える。ボタンは 44px 以上の高さを保つ。
-- 確認: `node --check sedori/app.js`
+- 利益管理（`sedori/kanri.html` / `kanri.js`、`style.css` は共用）: 仕入れ（1回の購入単位）と、それに結びつく売上を記録し、利益・在庫を集計する。保存先は localStorage（`sedori-ledger-v1`、`{ purchases: [...], sales: [...] }`）。1個あたり仕入れ額 = 仕入れ値 + 経費合計 ÷ 個数。CSV 書き出し（確定申告の元資料用）と JSON バックアップ/復元（復元は全置き換え、確認あり）。リサーチ画面の「仕入れを記録」は `kanri.html?add=1&...` で商品情報を引き継ぐ。Amazon の売上ファイル取り込みは未実装。
+- 確認: `node --check sedori/app.js sedori/kanri.js`

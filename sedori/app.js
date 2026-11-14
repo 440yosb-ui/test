@@ -369,6 +369,11 @@
     copy.addEventListener('click', function () { copyText(it.asin, copy); });
     tools.appendChild(copy);
     tools.appendChild(link('セラーセントラルで確認', 'https://sellercentral.amazon.co.jp/product-search/search?q=' + encodeURIComponent(it.asin), 'mini'));
+    // 利益管理の画面を別タブで開き、商品の情報を入力欄に引き継ぐ
+    var q = new URLSearchParams({ add: '1', title: it.title, brand: it.brand, asin: it.asin });
+    if (it.price != null) q.set('sellPrice', String(it.price));
+    if (it.fees != null) q.set('fee', String(it.fees));
+    tools.appendChild(link('仕入れを記録', 'kanri.html?' + q.toString(), 'mini'));
     td.appendChild(tools);
 
     var current = checks[it.asin] && checks[it.asin].status;
