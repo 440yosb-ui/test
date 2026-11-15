@@ -19,6 +19,19 @@
     { key: 'avgNew', label: '90日間の平均価格（新品の最安値）', pats: [/^new: ?90 ?days avg/i, /^新品: ?90 ?日平均/] },
     { key: 'amazon', label: 'Amazon本体の価格', pats: [/^amazon: current/i, /^amazon: 現在/i, /^amazon.*現在/i] },
     { key: 'amazonShare', label: 'Amazon本体が販売していた割合（90日）', pats: [/^buy box: ?% ?amazon/i] },
+    { key: 'avgNew30', label: '30日間の平均価格（新品の最安値）', pats: [/^new: ?30 ?days avg/i, /^新品: ?30 ?日平均/] },
+    { key: 'drop1', label: '新品価格の下落率（1日・％）', pats: [/^new: ?1 ?days?.*drop/i, /^新品: ?1 ?日.*下落/] },
+    { key: 'drop30', label: '新品価格の下落率（30日・％）', pats: [/^new: ?30 ?days?.*drop/i, /^新品: ?30 ?日.*下落/] },
+    { key: 'drop90', label: '新品価格の下落率（90日・％）', pats: [/^new: ?90 ?days?.*drop/i, /^新品: ?90 ?日.*下落/] },
+    { key: 'amazonOos', label: 'Amazon本体の在庫切れ率（90日・％）', pats: [/^amazon: ?90 ?days? ?oos/i, /^amazon.*90.*oos/i, /^amazon.*90.*在庫切れ/i] },
+    { key: 'amazonAvg', label: 'Amazon本体の90日平均価格', pats: [/^amazon: ?90 ?days avg/i, /^amazon: ?90 ?日平均/i] },
+    { key: 'rank', label: '売れ筋ランキング（現在）', pats: [/^sales rank: ?current/i, /ランキング: ?現在/] },
+    { key: 'rankAvg', label: '売れ筋ランキング（90日平均）', pats: [/^sales rank: ?90 ?days avg/i, /ランキング: ?90 ?日平均/] },
+    { key: 'rankDrop1', label: 'ランキングの上昇率（1日・％）', pats: [/^sales rank: ?1 ?days?.*drop.*%/i, /ランキング: ?1 ?日.*(下落|低下).*[%％]/] },
+    { key: 'drops90', label: '90日間に売れた回数（ランキングの低下回数）', pats: [/^sales rank: ?drops last 90/i, /^(?!.*[%％]).*ランキング.*90 ?日.*(減少|低下|ドロップ)/, /drops.*90/i] },
+    { key: 'sellersAvg', label: '出品者の数（30日平均）', pats: [/^new offer count: ?30 ?days avg/i, /^新品アイテム数: ?30 ?日平均/] },
+    { key: 'couponAbs', label: 'クーポンの割引額（円）', pats: [/^one time coupon: ?absolute/i, /^(ワンタイム)?クーポン.*(絶対|金額|割引額|円)/] },
+    { key: 'couponPct', label: 'クーポンの割引率（％）', pats: [/^one time coupon: ?percentage/i, /^(ワンタイム)?クーポン.*([%％]|パーセント|割合)/] },
     { key: 'sold', label: '月の販売数', pats: [/bought in past month/i, /過去1か月.*購入/, /先月.*購入/, /sales rank: drops last 30/i, /ランキング.*30日.*(下落|ドロップ)/, /drops.*30/i] },
     { key: 'sellers', label: '出品者の数', pats: [/^new offer count: current/i, /^新品アイテム数: ?現在/, /新品.*出品者数.*現在/, /offer count.*current/i, /出品者数.*現在/, /offer count/i, /出品者数/] },
     { key: 'fba', label: 'FBA手数料', pats: [/fba pick ?& ?pack/i, /fba.*fee/i, /fba.*手数料/i] },
@@ -35,7 +48,77 @@
     defPct: 10, defFba: 500, keyword: '', noAmazon: true, checkFilter: 'all',
     rakutenAppId: '', rakutenKey: '', yahooAppId: '',
     rakutenUrl: 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601',
-    mapping: {}
+    mapping: {}, mode: 'basic', modeParams: {}
+  };
+
+  var VARIATION_TIP = 'バリエーション：「1製品につき1バリエーションのみ表示」にチェック';
+
+  // リサーチの手法。手法ごとに、絞り込みの条件・計算に使う販売価格・表示する見どころが変わる。
+  // keepa: Keepa の製品ファインダーに入れる検索条件の目安（ドライブの資料より）
+  // needs: この列がファイルに無いと探せない／soft: 無ければその条件だけ使わずに表示する
+  var MODES = [
+    { key: 'basic', label: '通常', sort: 'sold:d',
+      desc: 'よく売れていて、手数料を引いても利益が残る商品を広く探します。',
+      basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します（品切れで一時的に値上がりした価格をあてにしないため）。',
+      keepa: [], params: [], needs: [], soft: [] },
+    { key: 'rise', label: '値上がり', sort: 'score:d',
+      desc: 'Amazonで最近値上がりした商品を探します。他のネットショップや店舗に、値上がり前の安い値段のまま残っている在庫を仕入れる方法です。',
+      basis: '販売価格は「値上がり後のいまの価格」で計算します。相場が戻ると利益が減るため、値上がり前との差が大きい商品を優先してください。',
+      keepa: ['Amazon：「在庫切れ」にチェック', '新品（現在価格）：3000 から', '新品「30日間の下落％」：-1000 から -20', '新品アイテム数（30日平均）：2 から', '先月の購入：50 から', VARIATION_TIP],
+      params: [
+        { key: 'minPrice', label: 'いまの価格（下限）', unit: '円以上', def: 3000, step: 500 },
+        { key: 'minRise', label: '30日間の値上がり率（最低）', unit: '％以上', def: 20, step: 5 },
+        { key: 'minGap', label: '値上がり前との価格差（最低）', unit: '円以上', def: 1500, step: 100 },
+        { key: 'minSold', label: '月に売れている個数（最低）', unit: '個以上', def: 50, step: 10 },
+        { key: 'minSellers', label: '出品者の数（最低）', unit: '人以上（メーカー独占の商品を除く）', def: 2, step: 1 }
+      ], needs: ['rise30'], soft: [] },
+    { key: 'trend', label: 'トレンド', sort: 'score:d',
+      desc: 'SNSやテレビで話題になり、この1日で急に値上がりして売れ始めた商品を探します。毎日見て「いつもと違う商品」に気づくのがコツです。',
+      basis: '販売価格は「いまの価格」で計算します。話題が落ち着くと相場が戻りやすいので、少ない個数から試してください。',
+      keepa: ['売れ筋ランキング（現在）：1 から 5000', '売れ筋ランキング「1日間の下落％」：30 から 99', 'Amazon：「在庫切れ」にチェック', '新品「1日間の下落％」：-1000 から -30', 'カテゴリー：選ばない（全ジャンル）', VARIATION_TIP],
+      params: [
+        { key: 'minRise', label: '1日間の値上がり率（最低）', unit: '％以上', def: 30, step: 5 },
+        { key: 'maxRank', label: '売れ筋ランキング（最大）', unit: '位以内', def: 5000, step: 1000 },
+        { key: 'minRankUp', label: 'ランキングの上昇率（最低）', unit: '％以上', def: 30, step: 5 },
+        { key: 'minPrice', label: 'いまの価格（下限）', unit: '円以上', def: 1000, step: 500 }
+      ], needs: ['rise1'], soft: ['rank', 'rankUp'] },
+    { key: 'kari', label: '刈り取り', sort: 'score:d',
+      desc: 'Amazon本体が在庫切れで値上がりしている商品を探し、Keepaの「トラッキング（値下がり通知）」に登録します。Amazonが安い値段で在庫を戻したときにAmazonで買い、また在庫が切れて値上がりしたときに売る方法です。',
+      basis: '販売価格は「値上がりしているいまの価格」で計算します。表示される金額以下でAmazonが在庫を戻したら通知が来るように、Keepaで登録してください。',
+      keepa: ['Amazon：「在庫切れ」にチェック', '新品（現在価格）：5000 から', '新品「90日間の下落％」：-1000 から -30', '90日間の在庫切れ率（OOS）のAmazon：50 から 80', '売れ筋ランキングの低下（過去90日間）：90 から', VARIATION_TIP],
+      params: [
+        { key: 'minPrice', label: 'いまの価格（下限）', unit: '円以上', def: 5000, step: 500 },
+        { key: 'minRise', label: '90日間の値上がり率（最低）', unit: '％以上', def: 30, step: 5 },
+        { key: 'minOos', label: 'Amazonの在庫切れ率（最低）', unit: '％以上', def: 50, step: 5 },
+        { key: 'maxOos', label: 'Amazonの在庫切れ率（最大）', unit: '％以下', def: 80, step: 5 },
+        { key: 'minDrops', label: '90日間に売れた回数（最低）', unit: '回以上', def: 90, step: 10 }
+      ], needs: ['rise90'], soft: ['amazonOos', 'drops'] },
+    { key: 'soku', label: '即刈り', sort: 'score:d',
+      desc: 'いまAmazonで一時的に大きく値下がりしている商品を探します。その場でAmazonから買い、値段が元に戻ってから売る方法です。',
+      basis: '販売価格は「過去90日の平均（元に戻ると見込む価格）」、仕入れ値は「いまの価格」で計算します。安い出品が残っている間は高く売れないので、Amazonの商品ページで安い出品者の人数と在庫を確かめてください。',
+      keepa: ['Amazonの在庫切れ：チェックしない', '新品（90日平均）：5000 から', '新品「1日間の下落％」：30 から 99', '90日間の在庫切れ率（OOS）のAmazon：60 から', '売れ筋ランキングの低下（過去90日間）：90 から', VARIATION_TIP],
+      params: [
+        { key: 'minAvg', label: '90日間の平均価格（下限）', unit: '円以上', def: 5000, step: 500 },
+        { key: 'minDrop', label: '1日間の値下がり率（最低）', unit: '％以上', def: 30, step: 5 },
+        { key: 'minOos', label: 'Amazonの在庫切れ率（最低）', unit: '％以上', def: 60, step: 5 },
+        { key: 'minDrops', label: '90日間に売れた回数（最低）', unit: '回以上', def: 90, step: 10 }
+      ], needs: ['rise1', 'avg90'], soft: ['amazonOos', 'drops'] },
+    { key: 'coupon', label: 'クーポン', sort: 'score:d',
+      desc: 'Amazonの割引クーポンが付いている商品を探します。クーポンで安く買い、通常の値段で売る方法です。ドライブの資料に具体的な条件が見当たらなかったため、一般的な考え方で作っています。',
+      basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほう、仕入れ値は「いまの価格 − クーポンの割引」で計算します。クーポンは1人1回までのことが多く、同じ商品を何個も買えないことがあります。',
+      keepa: ['ワンタイムクーポン：1 から（クーポン付きの商品だけにする）', '先月の購入：30 から', VARIATION_TIP],
+      params: [
+        { key: 'minOff', label: 'クーポンの割引率（最低）', unit: '％以上', def: 15, step: 5 },
+        { key: 'minSold', label: '月に売れている個数（最低）', unit: '個以上', def: 30, step: 10 }
+      ], needs: ['coupon'], soft: [] }
+  ];
+
+  // ファイルに列が無いときに、Keepa のどの列が必要かを伝えるための名前
+  var METRIC_NAMES = {
+    rise1: '「新品: 1日間の下落％」', rise30: '「新品: 30日間の下落％」または「新品: 30日平均」',
+    rise90: '「新品: 90日間の下落％」または「新品: 90日平均」', avg90: '「新品: 90日平均」',
+    amazonOos: '「Amazon: 90日間の在庫切れ率（OOS）」', rank: '「売れ筋ランキング: 現在」',
+    rankUp: '「売れ筋ランキング: 90日平均」', drops: '「売れ筋ランキングの低下（90日間）」', coupon: '「ワンタイムクーポン」'
   };
 
   var settings = loadSettings();
@@ -45,6 +128,7 @@
   var shown = [];         // いま表に出している商品
   var sortKey = 'sold';
   var sortDesc = true;
+  var avail = {};         // 読み込んだファイルに、各手法で使う数字が入っているか
   var shopCache = {};     // 取得済みの他サイト価格
   var lastCall = 0;
 
@@ -223,6 +307,20 @@
     return (v.length >= 5 && /[a-z]/i.test(v) && /\d/.test(v)) ? v : '';
   }
 
+  function currentMode() {
+    return MODES.filter(function (m) { return m.key === settings.mode; })[0] || MODES[0];
+  }
+  // 手法ごとの条件の値。利用者が変えていなければ初期値を使う。空欄は「制限なし」。
+  function modeParams(mode) {
+    var stored = settings.modeParams[mode.key] || {};
+    var p = {};
+    mode.params.forEach(function (d) { p[d.key] = num((d.key in stored) ? stored[d.key] : d.def); });
+    return p;
+  }
+  // 「最低○○」の条件。条件が空欄や0なら通す。数字が不明な商品は通さない。
+  function atLeast(v, min) { return min == null || min <= 0 || (v != null && v >= min); }
+  function pctText(n) { return (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '%'; }
+
   function buildItems() {
     var defPct = settingNum('defPct') || 0;
     var defFba = settingNum('defFba') || 0;
@@ -230,39 +328,171 @@
     var profit = settingNum('minProfit') || 0;
     return rawRows.map(function (r) {
       // いまの価格: カート価格が空なら新品の最安値を使う。平均価格も同じ考え方。
+      var curNew = num(cell(r, 'priceNew'));
       var current = num(cell(r, 'price'));
-      if (current == null) current = num(cell(r, 'priceNew'));
+      if (current == null) current = curNew;
       var avg = num(cell(r, 'avg'));
-      if (avg == null) avg = num(cell(r, 'avgNew'));
-      // 品切れなどで一時的に値上がりしていることがあるため、「いま」と「90日平均」の低いほうで計算する
-      var price = (current != null && avg != null) ? Math.min(current, avg) : (current != null ? current : avg);
+      var avgNew90 = num(cell(r, 'avgNew'));
+      if (avg == null) avg = avgNew90;
+      if (avgNew90 == null) avgNew90 = avg;
+      // 値上がり率（％、プラスが値上がり）。Keepa の「下落％」は値上がりがマイナスで入っているので符号を逆にする。
+      // 下落％の列が無いときは、いまの新品価格と期間の平均から計算する。
+      var base = curNew != null ? curNew : current;
+      var rise = function (dropKey, avgVal) {
+        var d = num(cell(r, dropKey));
+        if (d != null) return -d;
+        return (base != null && avgVal) ? (base - avgVal) / avgVal * 100 : null;
+      };
       var pct = num(cell(r, 'pct'));
       var fba = num(cell(r, 'fba'));
       var estimated = (pct == null || fba == null);
       if (pct == null) pct = defPct;
       if (fba == null) fba = defFba;
-      var fees = price == null ? null : Math.round(price * pct / 100 + fba);
       // JAN が複数入っている場合は先頭の1つを使う
       var jan = (cell(r, 'jan').match(/\d{8,13}/) || [''])[0];
       // 型式が空なら部品番号で代用する。ただしバーコード番号と同じ数字だけのものは型式として扱わない
       var model = usableModel(cell(r, 'model')) || usableModel(cell(r, 'part'));
       var amazonPrice = num(cell(r, 'amazon'));
       var amazonShare = num(cell(r, 'amazonShare'));
-      return {
+      var amazonNow = amazonPrice != null && amazonPrice > 0;
+      var rank = num(cell(r, 'rank')), rankAvg = num(cell(r, 'rankAvg'));
+      var rankUp = num(cell(r, 'rankDrop1'));
+      if (rankUp == null && rank != null && rankAvg) rankUp = (rankAvg - rank) / rankAvg * 100;
+      var couponAbs = Math.abs(num(cell(r, 'couponAbs')) || 0);
+      var couponPct = Math.abs(num(cell(r, 'couponPct')) || 0);
+      var coupon = couponAbs > 0 ? couponAbs : (couponPct > 0 && current != null ? Math.round(current * couponPct / 100) : null);
+      var sold = num(cell(r, 'sold'));
+      var drops90 = num(cell(r, 'drops90'));
+      var it = {
         title: cell(r, 'title'), asin: cell(r, 'asin'), brand: cell(r, 'brand'),
         model: model, jan: jan, category: cell(r, 'category'),
-        price: price, current: current, avg: avg, amazonShare: amazonShare,
+        current: current, avg: avg, avg90: avgNew90, amazonShare: amazonShare,
+        amazonNow: amazonNow,
         // Amazon本体がいま販売中、または過去90日の3割以上でAmazon本体が売っていた商品
-        amazonSells: (amazonPrice != null && amazonPrice > 0) || (amazonShare != null && amazonShare >= AMAZON_SHARE_LIMIT), sold: num(cell(r, 'sold')), sellers: num(cell(r, 'sellers')),
-        fees: fees, feesEstimated: estimated,
-        limit: fees == null ? null : Math.round(price - fees - other - profit)
+        amazonSells: amazonNow || (amazonShare != null && amazonShare >= AMAZON_SHARE_LIMIT),
+        amazonOos: num(cell(r, 'amazonOos')), amazonAvg: num(cell(r, 'amazonAvg')),
+        sold: sold, sellers: num(cell(r, 'sellers')), sellersAvg: num(cell(r, 'sellersAvg')),
+        // 90日間に売れた回数。列が無ければ月の販売数の3か月分で代用する
+        drops: drops90 != null ? drops90 : (sold != null ? sold * 3 : null),
+        rise1: rise('drop1', null), rise30: rise('drop30', num(cell(r, 'avgNew30'))), rise90: rise('drop90', avgNew90),
+        rank: rank, rankUp: rankUp, coupon: coupon,
+        price: null, fees: null, limit: null, feesEstimated: estimated,
+        buy: null, score: null, lines: [], priceNote: null
       };
+      // 計算に使う販売価格を決め、手数料と仕入れ上限を出す
+      it.setSell = function (sell) {
+        it.price = sell;
+        it.fees = sell == null ? null : Math.round(sell * pct / 100 + fba);
+        it.limit = it.fees == null ? null : Math.round(sell - it.fees - other - profit);
+        // 手数料と経費を引いて手元に残る金額。ここから仕入れ値を引いたものが利益。
+        it.net = it.fees == null ? null : Math.round(sell - it.fees - other);
+      };
+      return it;
     });
   }
 
+  // 手法ごとの判定。条件に合えば true を返し、販売価格・見どころ（lines）・並び順の点数（score）を商品に書き込む。
+  var EVAL = {
+    basic: function (it) {
+      // 品切れなどで一時的に値上がりしていることがあるため、「いま」と「90日平均」の低いほうで計算する
+      it.setSell((it.current != null && it.avg != null) ? Math.min(it.current, it.avg) : (it.current != null ? it.current : it.avg));
+      if (it.price == null) return false;
+      var minSold = settingNum('minSold'), maxSellers = settingNum('maxSellers'), minPrice = settingNum('minPrice');
+      if (!atLeast(it.sold, minSold)) return false;
+      if (maxSellers != null && it.sellers != null && it.sellers > maxSellers) return false;
+      if (minPrice != null && it.price < minPrice) return false;
+      if (settings.noAmazon && it.amazonSells) return false;
+      if (it.current != null && it.current > it.price * PRICE_SPIKE) it.priceNote = { text: 'いまは' + yen(it.current) + '（一時的に高い）', warn: true };
+      else if (it.current == null) it.priceNote = { text: '90日平均' };
+      it.score = it.sold;
+      return true;
+    },
+    rise: function (it, p) {
+      if (it.current == null || it.rise30 == null || it.amazonNow) return false;
+      if (!atLeast(it.current, p.minPrice) || !atLeast(it.rise30, p.minRise) || !atLeast(it.sold, p.minSold)) return false;
+      var before = it.current / (1 + it.rise30 / 100);
+      var gap = it.current - before;
+      if (!atLeast(gap, p.minGap)) return false;
+      var sellers = it.sellersAvg != null ? it.sellersAvg : it.sellers;
+      if (sellers != null && p.minSellers != null && sellers < p.minSellers) return false;
+      it.setSell(it.current);
+      it.priceNote = { text: '値上がり後のいまの価格' };
+      it.lines.push({ text: '30日で ' + pctText(it.rise30) + '（以前 約' + yen(before) + ' → いま ' + yen(it.current) + '、差 ' + yen(gap) + '）', hl: true });
+      it.score = gap;
+      return true;
+    },
+    trend: function (it, p) {
+      if (it.current == null || it.rise1 == null || it.amazonNow) return false;
+      if (!atLeast(it.current, p.minPrice) || !atLeast(it.rise1, p.minRise)) return false;
+      if (avail.rank && p.maxRank != null && (it.rank == null || it.rank > p.maxRank)) return false;
+      if (it.rankUp != null && p.minRankUp != null && it.rankUp < p.minRankUp) return false;
+      var before = it.current / (1 + it.rise1 / 100);
+      it.setSell(it.current);
+      it.priceNote = { text: '急に上がったいまの価格' };
+      it.lines.push({ text: '1日で ' + pctText(it.rise1) + '（約' + yen(before) + ' → ' + yen(it.current) + '）', hl: true });
+      if (it.rank != null) it.lines.push({ text: 'ランキング ' + it.rank.toLocaleString('ja-JP') + '位' + (it.rankUp != null ? '（' + Math.round(it.rankUp) + '%上昇）' : '') });
+      it.score = it.rise1;
+      return true;
+    },
+    kari: function (it, p) {
+      if (it.current == null || it.rise90 == null || it.amazonNow) return false;
+      if (!atLeast(it.current, p.minPrice) || !atLeast(it.rise90, p.minRise)) return false;
+      if (avail.amazonOos) {
+        if (it.amazonOos == null || !atLeast(it.amazonOos, p.minOos)) return false;
+        if (p.maxOos != null && it.amazonOos > p.maxOos) return false;
+      }
+      if (avail.drops && !atLeast(it.drops, p.minDrops)) return false;
+      it.setSell(it.current);
+      // Amazonがいつもの値段で在庫を戻しても利益が出ない商品は、待つ意味がない
+      if (it.amazonAvg != null && it.amazonAvg > it.limit) return false;
+      it.priceNote = { text: '値上がりしているいまの価格' };
+      it.lines.push({ text: 'Keepaで「Amazonが ' + yen(it.amazonAvg != null ? it.amazonAvg : it.limit) + ' 以下」になったら通知が来るように登録', hl: true });
+      it.lines.push({ text: '90日で ' + pctText(it.rise90) + (it.amazonOos != null ? ' ／ Amazonの在庫切れ ' + Math.round(it.amazonOos) + '%' : '') +
+        (it.amazonAvg != null ? ' ／ Amazonのいつもの価格 ' + yen(it.amazonAvg) : '') });
+      it.score = it.rise90;
+      return true;
+    },
+    soku: function (it, p) {
+      if (it.current == null || it.rise1 == null || it.avg90 == null) return false;
+      if (!atLeast(it.avg90, p.minAvg) || !atLeast(-it.rise1, p.minDrop)) return false;
+      if (avail.amazonOos && !atLeast(it.amazonOos, p.minOos)) return false;
+      if (avail.drops && !atLeast(it.drops, p.minDrops)) return false;
+      it.setSell(it.avg90);
+      it.buy = it.current;
+      if (it.buy > it.limit) return false;   // いま買っても欲しい利益が残らない
+      it.priceNote = { text: '90日平均（戻ると見込む価格）' };
+      it.lines.push({ text: 'いま ' + yen(it.buy) + ' で買い、' + yen(it.price) + ' に戻れば 見込み利益 ' + yen(it.net - it.buy), hl: true });
+      it.lines.push({ text: '1日で ' + pctText(it.rise1) + (it.amazonNow ? ' ／ Amazon本体が販売中（売り切れるまでは高く売れません）' : ''), warn: it.amazonNow });
+      it.score = it.net - it.buy;
+      return true;
+    },
+    coupon: function (it, p) {
+      if (it.current == null || it.coupon == null) return false;
+      var off = it.coupon / it.current * 100;
+      if (!atLeast(off, p.minOff) || !atLeast(it.sold, p.minSold)) return false;
+      it.setSell(it.avg90 != null ? Math.min(it.current, it.avg90) : it.current);
+      it.buy = Math.round(it.current - it.coupon);
+      if (it.buy > it.limit) return false;
+      it.lines.push({ text: 'クーポン ' + yen(it.coupon) + '引き（' + Math.round(off) + '%）→ ' + yen(it.buy) + ' で買い、' + yen(it.price) + ' で売ると 見込み利益 ' + yen(it.net - it.buy), hl: true });
+      it.score = it.net - it.buy;
+      return true;
+    }
+  };
+
+  // 読み込んだファイルに、手法で使う数字が1件でも入っているかを調べる
+  function checkAvailable(items) {
+    avail = {};
+    Object.keys(METRIC_NAMES).forEach(function (k) {
+      avail[k] = items.some(function (it) { return it[k] != null; });
+    });
+    // 売れた回数は、月の販売数からも代用できる
+    avail.drops = mapping.drops90 >= 0 || mapping.sold >= 0;
+  }
+
   function applyFilters(items) {
-    var minSold = settingNum('minSold'), maxSellers = settingNum('maxSellers');
-    var minPrice = settingNum('minPrice'), maxPrice = settingNum('maxPrice');
+    var mode = currentMode();
+    var p = modeParams(mode);
+    var maxPrice = settingNum('maxPrice');
     var kw = String(settings.keyword || '').trim().toLowerCase();
     var cf = settings.checkFilter;
     var stats = cf === 'goodBrand' ? brandStats() : null;
@@ -271,16 +501,27 @@
       if (cf === 'unchecked' && chk) return false;
       if (cf === 'passed' && !(chk && isPass(chk.status))) return false;
       if (cf === 'goodBrand' && !isGoodBrand(stats[brandKey(it.brand)])) return false;
+      if (kw && (it.title + ' ' + it.brand + ' ' + it.model).toLowerCase().indexOf(kw) === -1) return false;
+      if (!EVAL[mode.key](it, p)) return false;
       if (it.price == null) return false;                 // 価格が不明な商品は計算できない
       if (it.limit == null || it.limit <= 0) return false; // どう仕入れても利益が残らない
-      if (minSold != null && minSold > 0 && (it.sold == null || it.sold < minSold)) return false;
-      if (maxSellers != null && it.sellers != null && it.sellers > maxSellers) return false;
-      if (minPrice != null && it.price < minPrice) return false;
       if (maxPrice != null && it.price > maxPrice) return false;
-      if (settings.noAmazon && it.amazonSells) return false;
-      if (kw && (it.title + ' ' + it.brand + ' ' + it.model).toLowerCase().indexOf(kw) === -1) return false;
       return true;
     });
+  }
+
+  // 手法に必要な列がファイルに無いときの案内
+  function renderModeWarn() {
+    var mode = currentMode();
+    var box = $('mode-warn');
+    var hard = mode.needs.filter(function (k) { return !avail[k]; });
+    var soft = mode.soft.filter(function (k) { return !avail[k]; });
+    var names = function (keys) { return keys.map(function (k) { return METRIC_NAMES[k]; }).join('、'); };
+    var msg = '';
+    if (hard.length) msg = 'このファイルには ' + names(hard) + ' の列が無いため、「' + mode.label + '」では探せません。Keepaでエクスポートするときに、この列を含めてください（列の名前が違うだけなら、上の「列の割り当て」で選べます）。';
+    else if (soft.length) msg = 'このファイルには ' + names(soft) + ' の列が無いため、その条件は使わずに表示しています。';
+    box.hidden = !msg;
+    box.textContent = msg;
   }
 
   function sortItems(items) {
@@ -316,7 +557,10 @@
 
   function render() {
     if (!rawRows.length) return;
-    var all = sortItems(applyFilters(buildItems()));
+    var items = buildItems();
+    checkAvailable(items);
+    renderModeWarn();
+    var all = sortItems(applyFilters(items));
     shown = all.slice(0, MAX_ROWS);
     $('count').textContent = '（' + rawRows.length + '件中 ' + all.length + '件）';
     $('empty').hidden = all.length > 0;
@@ -337,14 +581,15 @@
       tdTitle.appendChild(link(it.title || it.asin, 'https://www.amazon.co.jp/dp/' + encodeURIComponent(it.asin)));
       var sub = [it.brand, it.category, it.model ? '型式: ' + it.model : '', it.jan ? 'JAN: ' + it.jan : ''].filter(Boolean).join(' ／ ');
       if (sub) tdTitle.appendChild(el('div', 'sub', sub));
+      // 手法ごとの見どころ（値上がり率・通知を登録する価格・見込み利益など）
+      it.lines.forEach(function (l) { tdTitle.appendChild(el('div', l.hl ? 'hl' : (l.warn ? 'sub warn' : 'sub'), l.text)); });
       if (it.amazonSells) {
         tdTitle.appendChild(el('div', 'sub warn', 'Amazon本体が販売' + (it.amazonShare != null ? '（過去90日の' + Math.round(it.amazonShare) + '%）' : '中')));
       }
       tr.appendChild(tdTitle);
 
       var tdPrice = el('td', 'num', yen(it.price));
-      if (it.current != null && it.current > it.price * PRICE_SPIKE) tdPrice.appendChild(el('div', 'sub warn', 'いまは' + yen(it.current) + '（一時的に高い）'));
-      else if (it.current == null) tdPrice.appendChild(el('div', 'sub', '90日平均'));
+      if (it.priceNote) tdPrice.appendChild(el('div', it.priceNote.warn ? 'sub warn' : 'sub', it.priceNote.text));
       tr.appendChild(tdPrice);
       tr.appendChild(el('td', 'num', it.sold == null ? '—' : it.sold.toLocaleString('ja-JP')));
       tr.appendChild(el('td', 'num', it.sellers == null ? '—' : String(it.sellers)));
@@ -630,7 +875,73 @@
   var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword'];
   var API_IDS = ['rakutenAppId', 'rakutenKey', 'rakutenUrl', 'yahooAppId'];
 
+  // 手法の切り替えボタンと、その手法の説明・条件の入力欄を作る
+  function renderModeUi() {
+    var mode = currentMode();
+    var tabs = $('mode-tabs');
+    tabs.textContent = '';
+    MODES.forEach(function (m) {
+      var b = el('button', 'mode-btn' + (m.key === mode.key ? ' on' : ''), m.label);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', m.key === mode.key ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        if (settings.mode === m.key) return;
+        settings.mode = m.key;
+        saveSettings();
+        // 手法に合った並び順に切り替える（値上がりなら価格差、即刈りなら見込み利益の大きい順）
+        $('sort-select').value = m.sort;
+        applySort(m.sort);
+        renderModeUi();
+        render();
+      });
+      tabs.appendChild(b);
+    });
+    $('mode-desc').textContent = mode.desc;
+    $('price-basis').textContent = mode.basis;
+
+    var list = $('mode-keepa-list');
+    list.textContent = '';
+    mode.keepa.forEach(function (t) { list.appendChild(el('li', '', t)); });
+    $('mode-keepa').hidden = mode.keepa.length === 0;
+
+    var grid = $('mode-grid');
+    grid.textContent = '';
+    var stored = settings.modeParams[mode.key] || {};
+    mode.params.forEach(function (d) {
+      var label = el('label', '', d.label);
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = String(d.step || 1);
+      input.value = (d.key in stored) ? stored[d.key] : d.def;
+      input.addEventListener('input', function () {
+        if (!settings.modeParams[mode.key]) settings.modeParams[mode.key] = {};
+        settings.modeParams[mode.key][d.key] = input.value;
+        saveSettings();
+        render();
+      });
+      label.appendChild(input);
+      label.appendChild(el('small', '', d.unit));
+      grid.appendChild(label);
+    });
+    grid.hidden = mode.params.length === 0;
+
+    // 「通常」だけで使う条件は、ほかの手法では隠す（手法ごとの条件と二重になるため）
+    Array.prototype.forEach.call(document.querySelectorAll('.basic-only'), function (e) { e.hidden = mode.key !== 'basic'; });
+  }
+
+  function applySort(value) {
+    var parts = value.split(':');
+    sortKey = parts[0];
+    sortDesc = parts[1] === 'd';
+  }
+
   function init() {
+    if (!MODES.some(function (m) { return m.key === settings.mode; })) settings.mode = 'basic';
+    if (!settings.modeParams || typeof settings.modeParams !== 'object') settings.modeParams = {};
+    $('sort-select').value = currentMode().sort;
+    applySort(currentMode().sort);
+    renderModeUi();
     FILTER_IDS.forEach(function (k) {
       var input = $('f-' + k);
       input.value = settings[k];
@@ -676,9 +987,7 @@
       });
     });
     $('sort-select').addEventListener('change', function (e) {
-      var parts = e.target.value.split(':');
-      sortKey = parts[0];
-      sortDesc = parts[1] === 'd';
+      applySort(e.target.value);
       render();
     });
   }
