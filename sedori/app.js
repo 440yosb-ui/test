@@ -4,6 +4,8 @@
   var STORE_KEY = 'sedori-research-settings-v1';
   var MAX_ROWS = 300;      // 画面に並べる最大件数
   var BULK_COUNT = 20;     // まとめて取得する件数
+  var AMAZON_SHARE_LIMIT = 30; // Amazon本体が過去90日のうちこの割合(%)以上で販売していたら「Amazon本体あり」とみなす
+  var PRICE_SPIKE = 1.15;      // いまの価格が計算用の価格のこの倍率を超えたら「一時的に高い」と表示
   var API_WAIT_MS = 1100;  // 他サイトへの問い合わせ間隔（負荷をかけないため）
 
   // Keepa のファイルの列名（英語・日本語どちらでも）から、使う項目を自動で探すためのパターン。
@@ -11,14 +13,20 @@
   var FIELDS = [
     { key: 'title', label: '商品名', pats: [/^title$/i, /^商品名$/, /タイトル/] },
     { key: 'asin', label: 'ASIN（Amazonの商品番号）', pats: [/^asin$/i] },
-    { key: 'price', label: '販売価格', pats: [/^buy box.*current/i, /カート.*現在/, /^new: current/i, /^新品: 現在/, /^new.*current/i, /新品.*現在/] },
+    { key: 'price', label: 'いまの販売価格（カート価格）', pats: [/^buy box: ?(current|現在)/i, /^buy box.*current/i, /カート.*現在/] },
+    { key: 'priceNew', label: 'いまの販売価格（新品の最安値）', pats: [/^new: ?current/i, /^新品: ?現在/] },
+    { key: 'avg', label: '90日間の平均価格（カート価格）', pats: [/^buy box: ?90 ?(days avg|日平均)/i] },
+    { key: 'avgNew', label: '90日間の平均価格（新品の最安値）', pats: [/^new: ?90 ?days avg/i, /^新品: ?90 ?日平均/] },
     { key: 'amazon', label: 'Amazon本体の価格', pats: [/^amazon: current/i, /^amazon: 現在/i, /^amazon.*現在/i] },
+    { key: 'amazonShare', label: 'Amazon本体が販売していた割合（90日）', pats: [/^buy box: ?% ?amazon/i] },
     { key: 'sold', label: '月の販売数', pats: [/bought in past month/i, /過去1か月.*購入/, /先月.*購入/, /sales rank: drops last 30/i, /ランキング.*30日.*(下落|ドロップ)/, /drops.*30/i] },
-    { key: 'sellers', label: '出品者の数', pats: [/^new offer count: current/i, /新品.*出品者数.*現在/, /offer count.*current/i, /出品者数.*現在/, /offer count/i, /出品者数/] },
-    { key: 'fba', label: 'FBA手数料', pats: [/fba.*fee/i, /fba.*手数料/i] },
-    { key: 'pct', label: '販売手数料の割合（％）', pats: [/referral fee %/i, /紹介料 ?%/, /販売手数料.*%/] },
+    { key: 'sellers', label: '出品者の数', pats: [/^new offer count: current/i, /^新品アイテム数: ?現在/, /新品.*出品者数.*現在/, /offer count.*current/i, /出品者数.*現在/, /offer count/i, /出品者数/] },
+    { key: 'fba', label: 'FBA手数料', pats: [/fba pick ?& ?pack/i, /fba.*fee/i, /fba.*手数料/i] },
+    { key: 'pct', label: '販売手数料の割合（％）', pats: [/referral fee %/i, /^紹介料 ?[%％]/, /販売手数料.*[%％]/] },
     { key: 'jan', label: 'JANコード（バーコード番号）', pats: [/codes: ean/i, /^ean$/i, /ean/i, /jan/i] },
-    { key: 'model', label: '型式', pats: [/^model$/i, /^モデル$/, /型番/, /partnumber/i, /部品番号/, /model/i] },
+    { key: 'model', label: '型式', pats: [/^model$/i, /^モデル$/, /型番/] },
+    { key: 'part', label: '型式の代わり（部品番号）', pats: [/partnumber/i, /部品番号/] },
+    { key: 'category', label: 'カテゴリー', pats: [/^(categories|カテゴリ): ?(root|ルート)/i] },
     { key: 'brand', label: 'ブランド', pats: [/^brand$/i, /^ブランド$/, /manufacturer/i, /メーカー/] }
   ];
 
@@ -171,7 +179,8 @@
       rawRows = rows.slice(1);
       autoMap();
       renderMapping();
-      var missing = ['title', 'asin', 'price', 'sold'].filter(function (k) { return mapping[k] < 0; })
+      var hasPrice = ['price', 'priceNew', 'avg', 'avgNew'].some(function (k) { return mapping[k] >= 0; });
+      var missing = ['title', 'asin', 'price', 'sold'].filter(function (k) { return k === 'price' ? !hasPrice : mapping[k] < 0; })
         .map(function (k) { return FIELDS.filter(function (f) { return f.key === k; })[0].label; });
       if (missing.length) {
         status.className = 'status err';
@@ -206,13 +215,27 @@
     return n == null ? null : n;
   }
 
+  // Keepa の型式欄には「100g」「-」「99-99」やバーコード番号など、検索に使えない値も入っている。
+  // 英字と数字の両方を含む5文字以上、または5〜7桁の数字だけを型式として扱う。
+  function usableModel(v) {
+    v = String(v || '').trim();
+    if (/^\d{5,7}$/.test(v)) return v;
+    return (v.length >= 5 && /[a-z]/i.test(v) && /\d/.test(v)) ? v : '';
+  }
+
   function buildItems() {
     var defPct = settingNum('defPct') || 0;
     var defFba = settingNum('defFba') || 0;
     var other = settingNum('otherCost') || 0;
     var profit = settingNum('minProfit') || 0;
     return rawRows.map(function (r) {
-      var price = num(cell(r, 'price'));
+      // いまの価格: カート価格が空なら新品の最安値を使う。平均価格も同じ考え方。
+      var current = num(cell(r, 'price'));
+      if (current == null) current = num(cell(r, 'priceNew'));
+      var avg = num(cell(r, 'avg'));
+      if (avg == null) avg = num(cell(r, 'avgNew'));
+      // 品切れなどで一時的に値上がりしていることがあるため、「いま」と「90日平均」の低いほうで計算する
+      var price = (current != null && avg != null) ? Math.min(current, avg) : (current != null ? current : avg);
       var pct = num(cell(r, 'pct'));
       var fba = num(cell(r, 'fba'));
       var estimated = (pct == null || fba == null);
@@ -221,11 +244,16 @@
       var fees = price == null ? null : Math.round(price * pct / 100 + fba);
       // JAN が複数入っている場合は先頭の1つを使う
       var jan = (cell(r, 'jan').match(/\d{8,13}/) || [''])[0];
+      // 型式が空なら部品番号で代用する。ただしバーコード番号と同じ数字だけのものは型式として扱わない
+      var model = usableModel(cell(r, 'model')) || usableModel(cell(r, 'part'));
+      var amazonPrice = num(cell(r, 'amazon'));
+      var amazonShare = num(cell(r, 'amazonShare'));
       return {
         title: cell(r, 'title'), asin: cell(r, 'asin'), brand: cell(r, 'brand'),
-        model: cell(r, 'model'), jan: jan,
-        price: price, sold: num(cell(r, 'sold')), sellers: num(cell(r, 'sellers')),
-        amazon: num(cell(r, 'amazon')),
+        model: model, jan: jan, category: cell(r, 'category'),
+        price: price, current: current, avg: avg, amazonShare: amazonShare,
+        // Amazon本体がいま販売中、または過去90日の3割以上でAmazon本体が売っていた商品
+        amazonSells: (amazonPrice != null && amazonPrice > 0) || (amazonShare != null && amazonShare >= AMAZON_SHARE_LIMIT), sold: num(cell(r, 'sold')), sellers: num(cell(r, 'sellers')),
         fees: fees, feesEstimated: estimated,
         limit: fees == null ? null : Math.round(price - fees - other - profit)
       };
@@ -249,7 +277,7 @@
       if (maxSellers != null && it.sellers != null && it.sellers > maxSellers) return false;
       if (minPrice != null && it.price < minPrice) return false;
       if (maxPrice != null && it.price > maxPrice) return false;
-      if (settings.noAmazon && it.amazon != null && it.amazon > 0) return false;
+      if (settings.noAmazon && it.amazonSells) return false;
       if (kw && (it.title + ' ' + it.brand + ' ' + it.model).toLowerCase().indexOf(kw) === -1) return false;
       return true;
     });
@@ -307,11 +335,17 @@
 
       var tdTitle = el('td', 'title');
       tdTitle.appendChild(link(it.title || it.asin, 'https://www.amazon.co.jp/dp/' + encodeURIComponent(it.asin)));
-      var sub = [it.brand, it.model ? '型式: ' + it.model : '', it.jan ? 'JAN: ' + it.jan : ''].filter(Boolean).join(' ／ ');
+      var sub = [it.brand, it.category, it.model ? '型式: ' + it.model : '', it.jan ? 'JAN: ' + it.jan : ''].filter(Boolean).join(' ／ ');
       if (sub) tdTitle.appendChild(el('div', 'sub', sub));
+      if (it.amazonSells) {
+        tdTitle.appendChild(el('div', 'sub warn', 'Amazon本体が販売' + (it.amazonShare != null ? '（過去90日の' + Math.round(it.amazonShare) + '%）' : '中')));
+      }
       tr.appendChild(tdTitle);
 
-      tr.appendChild(el('td', 'num', yen(it.price)));
+      var tdPrice = el('td', 'num', yen(it.price));
+      if (it.current != null && it.current > it.price * PRICE_SPIKE) tdPrice.appendChild(el('div', 'sub warn', 'いまは' + yen(it.current) + '（一時的に高い）'));
+      else if (it.current == null) tdPrice.appendChild(el('div', 'sub', '90日平均'));
+      tr.appendChild(tdPrice);
       tr.appendChild(el('td', 'num', it.sold == null ? '—' : it.sold.toLocaleString('ja-JP')));
       tr.appendChild(el('td', 'num', it.sellers == null ? '—' : String(it.sellers)));
       var tdFees = el('td', 'num', yen(it.fees));

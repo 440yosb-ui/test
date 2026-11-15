@@ -57,6 +57,7 @@ td.title { max-width: 340px; }
 td.title a { color: var(--text); text-decoration: none; font-weight: 600; }
 td.title a:hover { color: var(--accent); text-decoration: underline; }
 .sub { color: var(--muted); font-size: 12px; }
+.sub.warn { color: var(--warn); }
 .limit { font-weight: 700; color: var(--good); }
 .shop-line { margin-bottom: 4px; }
 .shop-line a { color: var(--accent); }
