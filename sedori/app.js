@@ -108,6 +108,15 @@
         { key: 'minOos', label: 'Amazonの在庫切れ率（最低）', unit: '％以上', def: 60, step: 5 },
         { key: 'minDrops', label: '90日間に売れた回数（最低）', unit: '回以上', def: 90, step: 10 }
       ], needs: ['rise1', 'avg90'], soft: ['amazonOos', 'drops'] },
+    // 根拠: リベシティ ノウハウ図書館「電脳せどりはたった一つのことだけやっておけば必ず稼げる！」（じゅんK）と
+    // YouTube「【セラーリサーチ】トップセラーの戦略をKeepaで丸裸に…」。月販50個は合宿スライド4コマ目より。
+    { key: 'seller', label: 'セラー', sort: 'sold:d',
+      desc: '利益が出た商品を1つ見つけたら、その商品を売っている出品者（セラー）の商品一覧から、ほかの利益商品を拾う方法です。出品数が100件前後の、自分より少し上くらいの個人の出品者を選びます（数千件の業者は手法が違うので避ける）。',
+      basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します。出品者が仕入れに失敗している商品もあるので、最後は必ず自分でKeepaのグラフを見て判断してください。自己発送で最安値より高い出品や、相場より明らかに高い出品は、リサーチよけの「ダミー商品」のことがあります。',
+      keepa: ['出品者のIDを調べる：Amazonの出品者ページのURLの「seller=」のあとにある、Aから始まる文字', 'Keepaの「出品者検索」にIDを入れると「重複の多い競合」に似た出品者が出る（有料プラン）', '製品ファインダーの「販売者ID」にIDを入れる（有料プラン）', 'Amazon：「在庫切れ」にチェック（任意。Amazonがいない商品に絞る）', '売れ筋ランキングの低下 または 先月の購入：50 から', VARIATION_TIP],
+      params: [
+        { key: 'minSold', label: '月に売れている個数（最低）', unit: '個以上', def: 50, step: 10 }
+      ], needs: [], soft: [] },
     { key: 'coupon', label: 'クーポン', sort: 'score:d',
       desc: 'Amazonの割引クーポンが付いている商品を探します。クーポンで安く買い、通常の値段で売る方法です。ドライブの資料に具体的な条件が見当たらなかったため、一般的な考え方で作っています。',
       basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほう、仕入れ値は「いまの価格 − クーポンの割引」で計算します。クーポンは1人1回までのことが多く、同じ商品を何個も買えないことがあります。',
@@ -489,6 +498,14 @@
       it.lines.push({ text: 'いま ' + yen(it.buy) + ' で買い、' + yen(it.price) + ' に戻れば 見込み利益 ' + yen(it.net - it.buy), hl: true });
       it.lines.push({ text: '1日で ' + pctText(it.rise1) + (it.amazonNow ? ' ／ Amazon本体が販売中（売り切れるまでは高く売れません）' : ''), warn: it.amazonNow });
       it.score = it.net - it.buy;
+      return true;
+    },
+    seller: function (it, p) {
+      it.setSell((it.current != null && it.avg != null) ? Math.min(it.current, it.avg) : (it.current != null ? it.current : it.avg));
+      if (it.price == null || !soldOk(it, p.minSold)) return false;
+      // Amazon本体がいても、カートが分散していれば自分にも回ってくる（資料より）。除外はせず、商品名の下の表示で知らせる。
+      if (it.current != null && it.current > it.price * PRICE_SPIKE) it.priceNote = { text: 'いまは' + yen(it.current) + '（一時的に高い）', warn: true };
+      it.score = it.sold;
       return true;
     },
     coupon: function (it, p) {
