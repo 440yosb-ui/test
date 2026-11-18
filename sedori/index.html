@@ -71,6 +71,8 @@
         <option value="goodBrand">通りやすいメーカーの商品だけ</option>
       </select>
     </label>
+    <label class="check"><input type="checkbox" id="f-noRisingSellers"> 出品者が増えている商品を除く（出品者が増えると値下がりしやすいため）</label>
+    <label class="check"><input type="checkbox" id="f-showUnknownSold"> 月の販売数が分からない商品も表示する（Keepaに数字が出ていなくても売れている商品があるため。表示された商品は「DATA → オファー」で売れているか確認）</label>
     <label class="check basic-only"><input type="checkbox" id="f-noAmazon"> Amazon本体がよく販売している商品を除く（価格競争で勝ちにくいため）</label>
     <p class="note"><span id="price-basis"></span>「仕入れ上限」＝ 販売価格 − 販売手数料 − FBA手数料 − その他の経費 − 欲しい利益。<strong>この金額以下で仕入れられれば、欲しい利益が残ります。</strong></p>
     </details>

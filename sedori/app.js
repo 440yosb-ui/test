@@ -6,6 +6,10 @@
   var BULK_COUNT = 20;     // まとめて取得する件数
   var AMAZON_SHARE_LIMIT = 30; // Amazon本体が過去90日のうちこの割合(%)以上で販売していたら「Amazon本体あり」とみなす
   var PRICE_SPIKE = 1.15;      // いまの価格が計算用の価格のこの倍率を超えたら「一時的に高い」と表示
+  // 出品者の数が30日平均からこの割合以上、かつこの人数以上増減したら「増加中／減少中」とみなす
+  // （資料：出品者が増えると価格が下がり、減ると上がる）
+  var SELLER_TREND_RATE = 0.3;
+  var SELLER_TREND_MIN = 2;
   var API_WAIT_MS = 1100;  // 他サイトへの問い合わせ間隔（負荷をかけないため）
 
   // Keepa のファイルの列名（英語・日本語どちらでも）から、使う項目を自動で探すためのパターン。
@@ -46,6 +50,7 @@
   var DEFAULTS = {
     minSold: 100, maxSellers: 15, minPrice: 1000, maxPrice: '', minProfit: 200, otherCost: 50,
     defPct: 10, defFba: 500, keyword: '', noAmazon: true, checkFilter: 'all',
+    noRisingSellers: true, showUnknownSold: false,
     rakutenAppId: '', rakutenKey: '', yahooAppId: '',
     rakutenUrl: 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601',
     mapping: {}, mode: 'basic', modeParams: {}
@@ -319,6 +324,26 @@
   }
   // 「最低○○」の条件。条件が空欄や0なら通す。数字が不明な商品は通さない。
   function atLeast(v, min) { return min == null || min <= 0 || (v != null && v >= min); }
+  // 月の販売数の条件。Keepaに販売数が出ていなくても売れている商品はあるため、設定しだいで通す。
+  function soldOk(it, min) {
+    if (it.sold == null && settings.showUnknownSold) return true;
+    return atLeast(it.sold, min);
+  }
+  // 出品者の数の動き。'up'＝増加中、'down'＝減少中、null＝大きな変化なし・不明
+  function sellerTrend(it) {
+    if (it.sellers == null || it.sellersAvg == null || it.sellersAvg <= 0) return null;
+    var diff = it.sellers - it.sellersAvg;
+    if (Math.abs(diff) < SELLER_TREND_MIN || Math.abs(diff) / it.sellersAvg < SELLER_TREND_RATE) return null;
+    return diff > 0 ? 'up' : 'down';
+  }
+  // どの手法でも共通で出す注意書き
+  function addCommonLines(it) {
+    var t = sellerTrend(it);
+    var avgText = '30日平均 ' + Math.round(it.sellersAvg) + '人 → いま ' + it.sellers + '人';
+    if (t === 'up') it.lines.push({ text: '出品者が増えています（' + avgText + '）。値下がりしやすいので様子見がおすすめ', warn: true });
+    if (t === 'down') it.lines.push({ text: '出品者が減っています（' + avgText + '）。値上がりしやすい一方、急に減ったときは偽物の取り締まりの可能性もあります' });
+    if (it.sold == null) it.lines.push({ text: '月の販売数が分かりません。Keepaの「DATA → オファー」で在庫が減っているか（売れているか）を確かめてください', warn: true });
+  }
   function pctText(n) { return (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '%'; }
 
   function buildItems() {
@@ -398,7 +423,7 @@
       it.setSell((it.current != null && it.avg != null) ? Math.min(it.current, it.avg) : (it.current != null ? it.current : it.avg));
       if (it.price == null) return false;
       var minSold = settingNum('minSold'), maxSellers = settingNum('maxSellers'), minPrice = settingNum('minPrice');
-      if (!atLeast(it.sold, minSold)) return false;
+      if (!soldOk(it, minSold)) return false;
       if (maxSellers != null && it.sellers != null && it.sellers > maxSellers) return false;
       if (minPrice != null && it.price < minPrice) return false;
       if (settings.noAmazon && it.amazonSells) return false;
@@ -409,7 +434,7 @@
     },
     rise: function (it, p) {
       if (it.current == null || it.rise30 == null || it.amazonNow) return false;
-      if (!atLeast(it.current, p.minPrice) || !atLeast(it.rise30, p.minRise) || !atLeast(it.sold, p.minSold)) return false;
+      if (!atLeast(it.current, p.minPrice) || !atLeast(it.rise30, p.minRise) || !soldOk(it, p.minSold)) return false;
       var before = it.current / (1 + it.rise30 / 100);
       var gap = it.current - before;
       if (!atLeast(gap, p.minGap)) return false;
@@ -469,7 +494,7 @@
     coupon: function (it, p) {
       if (it.current == null || it.coupon == null) return false;
       var off = it.coupon / it.current * 100;
-      if (!atLeast(off, p.minOff) || !atLeast(it.sold, p.minSold)) return false;
+      if (!atLeast(off, p.minOff) || !soldOk(it, p.minSold)) return false;
       it.setSell(it.avg90 != null ? Math.min(it.current, it.avg90) : it.current);
       it.buy = Math.round(it.current - it.coupon);
       if (it.buy > it.limit) return false;
@@ -503,6 +528,9 @@
       if (cf === 'goodBrand' && !isGoodBrand(stats[brandKey(it.brand)])) return false;
       if (kw && (it.title + ' ' + it.brand + ' ' + it.model).toLowerCase().indexOf(kw) === -1) return false;
       if (!EVAL[mode.key](it, p)) return false;
+      // トレンドは「出品者が急に減る」のが特徴なので、増加中の除外だけを行い、どの手法でも同じ扱いにする
+      if (settings.noRisingSellers && sellerTrend(it) === 'up') return false;
+      addCommonLines(it);
       if (it.price == null) return false;                 // 価格が不明な商品は計算できない
       if (it.limit == null || it.limit <= 0) return false; // どう仕入れても利益が残らない
       if (maxPrice != null && it.price > maxPrice) return false;
@@ -947,9 +975,11 @@
       input.value = settings[k];
       input.addEventListener('input', function () { settings[k] = input.value; saveSettings(); render(); });
     });
-    var chk = $('f-noAmazon');
-    chk.checked = !!settings.noAmazon;
-    chk.addEventListener('change', function () { settings.noAmazon = chk.checked; saveSettings(); render(); });
+    ['noAmazon', 'noRisingSellers', 'showUnknownSold'].forEach(function (k) {
+      var box = $('f-' + k);
+      box.checked = !!settings[k];
+      box.addEventListener('change', function () { settings[k] = box.checked; saveSettings(); render(); });
+    });
 
     API_IDS.forEach(function (k) {
       var input = $('s-' + k);
