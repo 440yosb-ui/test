@@ -51,6 +51,8 @@
     minSold: 100, maxSellers: 15, minPrice: 1000, maxPrice: '', minProfit: 200, otherCost: 50,
     defPct: 10, defFba: 500, keyword: '', noAmazon: true, checkFilter: 'all',
     noRisingSellers: true, showUnknownSold: false,
+    // 自己配送（自分で発送）した場合の計算。送料の初期値はリベ大「自己配送 始め方 マニュアル」（じゅんK）の「ネコポスだと送料200円/個弱」より
+    selfShipOn: false, selfShip: 200,
     rakutenAppId: '', rakutenKey: '', yahooAppId: '',
     rakutenUrl: 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601',
     mapping: {}, mode: 'basic', modeParams: {}
@@ -78,7 +80,7 @@
         { key: 'minSellers', label: '出品者の数（最低）', unit: '人以上（メーカー独占の商品を除く）', def: 2, step: 1 }
       ], needs: ['rise30'], soft: [] },
     { key: 'trend', label: 'トレンド', sort: 'score:d',
-      desc: 'SNSやテレビで話題になり、この1日で急に値上がりして売れ始めた商品を探します。毎日見て「いつもと違う商品」に気づくのがコツです。',
+      desc: 'SNSやテレビで話題になり、この1日で急に値上がりして売れ始めた商品を探します。毎日見て「いつもと違う商品」に気づくのがコツです。なお、リベ大の記事（じゅんK「月100万円を稼いだ手法3選…」）では、ランキングから探す方法は誰でもできて競争が激しく、価格が急落しやすいとして、やめたことに挙げられています。',
       basis: '販売価格は「いまの価格」で計算します。話題が落ち着くと相場が戻りやすいので、少ない個数から試してください。',
       keepa: ['売れ筋ランキング（現在）：1 から 5000', '売れ筋ランキング「1日間の下落％」：30 から 99', 'Amazon：「在庫切れ」にチェック', '新品「1日間の下落％」：-1000 から -30', 'カテゴリー：選ばない（全ジャンル）', VARIATION_TIP],
       params: [
@@ -111,7 +113,7 @@
     // 根拠: リベシティ ノウハウ図書館「電脳せどりはたった一つのことだけやっておけば必ず稼げる！」（じゅんK）と
     // YouTube「【セラーリサーチ】トップセラーの戦略をKeepaで丸裸に…」。月販50個は合宿スライド4コマ目より。
     { key: 'seller', label: 'セラー', sort: 'sold:d',
-      desc: '利益が出た商品を1つ見つけたら、その商品を売っている出品者（セラー）の商品一覧から、ほかの利益商品を拾う方法です。出品数が100件前後の、自分より少し上くらいの個人の出品者を選びます（数千件の業者は手法が違うので避ける）。',
+      desc: 'リベ大の記事で最も勧められている方法です（じゅんKさんは月100万円の仕入れをほぼこれだけで行っているそうです）。利益が出た商品を1つ見つけたら、その商品を売っている出品者（セラー）の商品一覧から、ほかの利益商品を拾います。出品数が100件前後の、自分より少し上くらいの個人の出品者を選びます（数千件の業者は手法が違うので避ける）。',
       basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します。出品者が仕入れに失敗している商品もあるので、最後は必ず自分でKeepaのグラフを見て判断してください。自己発送で最安値より高い出品や、相場より明らかに高い出品は、リサーチよけの「ダミー商品」のことがあります。',
       keepa: ['出品者のIDを調べる：Amazonの出品者ページのURLの「seller=」のあとにある、Aから始まる文字', 'Keepaの「出品者検索」にIDを入れると「重複の多い競合」に似た出品者が出る（有料プラン）', '製品ファインダーの「販売者ID」にIDを入れる（有料プラン）', 'Amazon：「在庫切れ」にチェック（任意。Amazonがいない商品に絞る）', '売れ筋ランキングの低下 または 先月の購入：50 から', VARIATION_TIP],
       params: [
@@ -349,8 +351,14 @@
   function addCommonLines(it) {
     var t = sellerTrend(it);
     var avgText = '30日平均 ' + Math.round(it.sellersAvg) + '人 → いま ' + it.sellers + '人';
-    if (t === 'up') it.lines.push({ text: '出品者が増えています（' + avgText + '）。値下がりしやすいので様子見がおすすめ', warn: true });
+    // 複数買いを控える注意はリベ大ノウハウ図書館「ドンキホーテで月10万円稼ぐ方法」（全国同時セールで出品者が急増→価格急落）より
+    if (t === 'up') it.lines.push({ text: '出品者が増えています（' + avgText + '）。値下がりしやすいので様子見がおすすめ。仕入れるときも複数買いは控えめに', warn: true });
     if (t === 'down') it.lines.push({ text: '出品者が減っています（' + avgText + '）。値上がりしやすい一方、急に減ったときは偽物の取り締まりの可能性もあります' });
+    if (it.limitSelf != null && it.limit != null && it.limitSelf > it.limit) {
+      it.lines.push(it.limit <= 0
+        ? { text: 'FBAでは利益が出ませんが、自己配送なら仕入れ上限 ' + yen(it.limitSelf), hl: true }
+        : { text: '自己配送なら仕入れ上限 ' + yen(it.limitSelf) + '（FBAより ' + yen(it.limitSelf - it.limit) + ' 高い）' });
+    }
     if (it.sold == null) it.lines.push({ text: '月の販売数が分かりません。Keepaの「DATA → オファー」で在庫が減っているか（売れているか）を確かめてください', warn: true });
   }
   function pctText(n) { return (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '%'; }
@@ -360,6 +368,7 @@
     var defFba = settingNum('defFba') || 0;
     var other = settingNum('otherCost') || 0;
     var profit = settingNum('minProfit') || 0;
+    var selfShip = settings.selfShipOn ? settingNum('selfShip') : null;
     return rawRows.map(function (r) {
       // いまの価格: カート価格が空なら新品の最安値を使う。平均価格も同じ考え方。
       var curNew = num(cell(r, 'priceNew'));
@@ -420,6 +429,8 @@
         it.limit = it.fees == null ? null : Math.round(sell - it.fees - other - profit);
         // 手数料と経費を引いて手元に残る金額。ここから仕入れ値を引いたものが利益。
         it.net = it.fees == null ? null : Math.round(sell - it.fees - other);
+        // 自己配送ならFBA手数料の代わりに送料がかかる（リベ大「自己配送 始め方 マニュアル」）
+        it.limitSelf = (sell == null || selfShip == null) ? null : Math.round(sell - sell * pct / 100 - selfShip - other - profit);
       };
       return it;
     });
@@ -549,7 +560,8 @@
       if (settings.noRisingSellers && sellerTrend(it) === 'up') return false;
       addCommonLines(it);
       if (it.price == null) return false;                 // 価格が不明な商品は計算できない
-      if (it.limit == null || it.limit <= 0) return false; // どう仕入れても利益が残らない
+      // どう仕入れても利益が残らない（自己配送の計算をオンにしていれば、自己配送で利益が残る商品は残す）
+      if ((it.limit == null || it.limit <= 0) && !(it.limitSelf > 0)) return false;
       if (maxPrice != null && it.price > maxPrice) return false;
       return true;
     });
@@ -917,7 +929,7 @@
 
   // ---------- 画面の入力とつなぐ ----------
 
-  var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword'];
+  var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword', 'selfShip'];
   var API_IDS = ['rakutenAppId', 'rakutenKey', 'rakutenUrl', 'yahooAppId'];
 
   // 手法の切り替えボタンと、その手法の説明・条件の入力欄を作る
@@ -992,7 +1004,7 @@
       input.value = settings[k];
       input.addEventListener('input', function () { settings[k] = input.value; saveSettings(); render(); });
     });
-    ['noAmazon', 'noRisingSellers', 'showUnknownSold'].forEach(function (k) {
+    ['noAmazon', 'noRisingSellers', 'showUnknownSold', 'selfShipOn'].forEach(function (k) {
       var box = $('f-' + k);
       box.checked = !!settings[k];
       box.addEventListener('change', function () { settings[k] = box.checked; saveSettings(); render(); });
