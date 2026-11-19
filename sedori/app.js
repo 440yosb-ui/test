@@ -354,6 +354,8 @@
     // 複数買いを控える注意はリベ大ノウハウ図書館「ドンキホーテで月10万円稼ぐ方法」（全国同時セールで出品者が急増→価格急落）より
     if (t === 'up') it.lines.push({ text: '出品者が増えています（' + avgText + '）。値下がりしやすいので様子見がおすすめ。仕入れるときも複数買いは控えめに', warn: true });
     if (t === 'down') it.lines.push({ text: '出品者が減っています（' + avgText + '）。値上がりしやすい一方、急に減ったときは偽物の取り締まりの可能性もあります' });
+    // 根拠: ドライブ「keepa仕入れ判断完全攻略ガイドBOOK」（出品者が1人＝公式メーカーの可能性。知的財産権の侵害で真贋調査が入ることがある）
+    if (it.sellers === 1) it.lines.push({ text: '出品者が1人だけです。メーカー公式が売っている可能性があり、出品すると知的財産権の申し立て（真贋調査）を受けることがあります。出品者が誰かを確認してください', warn: true });
     if (it.limitSelf != null && it.limit != null && it.limitSelf > it.limit) {
       it.lines.push(it.limit <= 0
         ? { text: 'FBAでは利益が出ませんが、自己配送なら仕入れ上限 ' + yen(it.limitSelf), hl: true }
