@@ -728,6 +728,11 @@
     if (it.price != null) q.set('sellPrice', String(it.price));
     if (it.fees != null) q.set('fee', String(it.fees));
     tools.appendChild(link('仕入れを記録', 'kanri.html?' + q.toString(), 'mini'));
+    var calcBtn = el('button', 'mini', 'ポイント込みで計算');
+    calcBtn.type = 'button';
+    calcBtn.title = 'この商品の販売価格と手数料を、下の「5. ポイント・クーポン込みの仕入れ値を計算」に入れます';
+    calcBtn.addEventListener('click', function () { openCalc(it); });
+    tools.appendChild(calcBtn);
     td.appendChild(tools);
 
     var current = checks[it.asin] && checks[it.asin].status;
@@ -751,6 +756,58 @@
 
     var st = stats[brandKey(it.brand)];
     if (st) td.appendChild(el('div', 'brand-hint', 'このメーカーの記録: 通った ' + st.pass + '件 ／ 通らなかった ' + st.fail + '件'));
+  }
+
+  // ---------- ポイント・クーポン込みの仕入れ値（リベ大 合宿2コマ目のプロンプト集の計算式） ----------
+
+  var CALC_IDS = ['price', 'ship', 'coupon', 'couponMax', 'point', 'sell', 'fee'];
+
+  function calc() {
+    var v = {};
+    CALC_IDS.forEach(function (k) { v[k] = $('c-' + k).value.trim(); });
+    var price = num(v.price), ship = num(v.ship) || 0, rate = num(v.point) || 0;
+    var sell = num(v.sell), fee = num(v.fee);
+    var show = function (id, n) { $(id).textContent = yen(n); };
+    if (price == null || price <= 0) {
+      ['c-r-coupon', 'c-r-points', 'c-r-real', 'c-r-profit', 'c-r-break'].forEach(function (id) { $(id).textContent = '—'; });
+      $('c-r-rate').textContent = '';
+      return;
+    }
+    // クーポン: 「5%」なら表示価格×5%を四捨五入（上限があれば超えない）、数字だけなら円引き
+    var coupon = 0;
+    if (/[%％]/.test(v.coupon)) {
+      coupon = Math.round(price * (num(v.coupon) || 0) / 100);
+      var max = num(v.couponMax);
+      if (max != null && max > 0) coupon = Math.min(coupon, max);
+    } else coupon = num(v.coupon) || 0;
+    var points = Math.max(0, Math.floor((price / 1.1 - coupon) * rate / 100));
+    var real = price + ship - coupon - points;
+    show('c-r-coupon', coupon);
+    show('c-r-points', points);
+    show('c-r-real', real);
+    if (sell != null && fee != null) {
+      var profit = sell - fee - real;
+      var el1 = $('c-r-profit');
+      el1.textContent = yen(profit);
+      el1.className = profit < 0 ? 'minus' : '';
+      $('c-r-rate').textContent = sell > 0 ? '利益率 ' + (profit / sell * 100).toFixed(1) + '%' : '';
+      show('c-r-break', real + fee);
+    } else {
+      $('c-r-profit').textContent = '—';
+      $('c-r-rate').textContent = '販売価格と手数料を入れると出ます';
+      $('c-r-break').textContent = '—';
+    }
+  }
+
+  function openCalc(it) {
+    if (it.price != null) $('c-sell').value = it.price;
+    if (it.fees != null) $('c-fee').value = it.fees;
+    var t = $('c-target');
+    t.hidden = false;
+    t.textContent = '対象の商品: ' + (it.title || it.asin) + (it.feesEstimated ? '（手数料は概算）' : '');
+    calc();
+    $('c-price').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    $('c-price').focus({ preventScroll: true });
   }
 
   function renderBrands() {
@@ -1052,6 +1109,7 @@
       e.target.value = '';
     });
     renderBrands();
+    CALC_IDS.forEach(function (k) { $('c-' + k).addEventListener('input', calc); });
     $('bulk-btn').addEventListener('click', bulkFetch);
     $('test-btn').addEventListener('click', testConnection);
 
