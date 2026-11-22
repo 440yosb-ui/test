@@ -66,11 +66,14 @@
       r.dayQty += daysBetween(p.date, s.date) * s.qty;
     });
     r.profit = r.sales - r.fees - r.cost;
-    r.stock = 0; r.stockValue = 0;
+    r.stock = 0; r.stockValue = 0; r.oldStock = 0; r.oldValue = 0;
+    var now = today();
     data.purchases.forEach(function (p) {
       var rem = remaining(p);
       r.stock += rem;
       r.stockValue += rem * unitTotalCost(p);
+      // 仕入れから3か月（90日）以上残っている在庫（リベ大「せどりの資金管理術」: 3か月に1回の棚卸しで売れ残りを増やさない）
+      if (rem > 0 && daysBetween(p.date, now) >= 90) { r.oldStock += rem; r.oldValue += rem * unitTotalCost(p); }
     });
     return r;
   }
@@ -105,6 +108,25 @@
     $('t-days').textContent = r.qty > 0 ? (r.dayQty / r.qty).toFixed(1) + '日' : '—';
     $('t-stock').textContent = r.stock.toLocaleString('ja-JP') + '個';
     $('t-stockValue').textContent = yen(r.stockValue);
+    $('t-oldStock').textContent = r.oldStock ? r.oldStock.toLocaleString('ja-JP') + '個（' + yen(r.oldValue) + '）' : 'なし';
+    $('t-oldStock').className = r.oldStock ? 'minus' : '';
+  }
+
+  // 売れ残り在庫の目安（リベ大「せどり相談室」2025/12/21 の評価額ルールの例:
+  // 1か月目 通常価格 → 2か月目 −10% → 3か月目 −20% → 4か月目 一部を損切りかセット化 → 6か月目 大幅値下げで処分）
+  function agingAdvice(p) {
+    var days = daysBetween(p.date, today());
+    var price = function (rate) {
+      if (p.sellPrice == null) return '';
+      var v = Math.round(p.sellPrice * (1 - rate));
+      var profit = p.fee != null ? '、1個あたり利益 ' + yen(v - p.fee - unitTotalCost(p)) : '';
+      return '（予定価格 ' + yen(p.sellPrice) + ' → ' + yen(v) + profit + '）';
+    };
+    if (days < 30) return null;
+    if (days < 60) return { text: '仕入れから' + days + '日（2か月目）。10%の値下げを検討' + price(0.1), warn: false };
+    if (days < 90) return { text: '仕入れから' + days + '日（3か月目）。20%の値下げを検討' + price(0.2), warn: true };
+    if (days < 150) return { text: '仕入れから' + days + '日（4か月目〜）。一部を損切りするか、セットにして売ることを検討', warn: true };
+    return { text: '仕入れから' + days + '日（6か月目〜）。大幅値下げで処分を検討。損切りの方法は「仕入れ先で売る」「フリマで値下げして売り切る」「買取業者に査定を出す」', warn: true };
   }
 
   function field(labelText, type, value, attrs) {
@@ -188,6 +210,8 @@
         var plan = p.sellPrice - p.fee - unitTotalCost(p);
         card.appendChild(el('div', 'sub', '予定どおり売れた場合の利益: 1個あたり ' + yen(plan)));
       }
+      var advice = rem > 0 ? agingAdvice(p) : null;
+      if (advice) card.appendChild(el('div', advice.warn ? 'sub warn' : 'sub', advice.text));
 
       if (openSaleForm === p.id && rem > 0) renderSaleForm(card, p);
       else {
