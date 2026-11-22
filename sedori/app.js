@@ -532,7 +532,10 @@
     seller: function (it, p) {
       it.setSell((it.current != null && it.avg != null) ? Math.min(it.current, it.avg) : (it.current != null ? it.current : it.avg));
       if (it.price == null || !soldOk(it, p.minSold)) return false;
-      // Amazon本体がいても、カートが分散していれば自分にも回ってくる（資料より）。除外はせず、商品名の下の表示で知らせる。
+      // Amazon本体がいる商品の扱い: YouTube資料は「カートが分散していれば除外しない」だったが、
+      // リベ大「せどり相談室」（2025/12/21）の「Amazon本体出品のものはカートを取ってもすぐ取られるので相手にしない方が良い」を優先し、
+      // 「Amazon本体がよく販売している商品を除く」設定（初期値オン）に従って除外する。
+      if (settings.noAmazon && it.amazonSells) return false;
       if (it.current != null && it.current > it.price * PRICE_SPIKE) it.priceNote = { text: 'いまは' + yen(it.current) + '（一時的に高い）', warn: true };
       it.score = it.sold;
       return true;
@@ -1060,6 +1063,7 @@
 
     // 「通常」だけで使う条件は、ほかの手法では隠す（手法ごとの条件と二重になるため）
     Array.prototype.forEach.call(document.querySelectorAll('.basic-only'), function (e) { e.hidden = mode.key !== 'basic'; });
+    Array.prototype.forEach.call(document.querySelectorAll('.basic-seller'), function (e) { e.hidden = mode.key !== 'basic' && mode.key !== 'seller'; });
   }
 
   function applySort(value) {
