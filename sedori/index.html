@@ -10,7 +10,7 @@
 <header class="top">
   <nav class="nav"><a href="index.html" class="current">リサーチ</a><a href="kanri.html">利益管理</a></nav>
   <h1>仕入れリサーチツール</h1>
-  <p class="lead">Keepaからダウンロードした商品一覧を読み込み、「よく売れていて、利益が出る」商品だけに絞り込みます。</p>
+  <p class="lead">Keepaからダウンロードした商品一覧を読み込み、リサーチの手法（値上がり・刈り取りなど）ごとに、利益が出そうな商品だけに絞り込みます。</p>
 </header>
 
 <main>
@@ -32,13 +32,23 @@
 
   <section class="card">
     <details open id="filter-box">
-    <summary class="h2">2. 絞り込みの条件（タップで開閉）</summary>
+    <summary class="h2">2. リサーチの手法と条件（タップで開閉）</summary>
+    <div class="mode-tabs" id="mode-tabs"></div>
+    <p class="note" id="mode-desc"></p>
+    <details id="mode-keepa">
+      <summary>この手法のファイルの作り方（Keepaに入れる検索条件）</summary>
+      <p class="note">Keepaの「製品ファインダー」に下の条件を入れて検索し、その結果をCSVで保存して「1」で読み込みます。条件の数字は目安です。</p>
+      <ul id="mode-keepa-list" class="keepa-list"></ul>
+    </details>
+    <div class="grid mode-grid" id="mode-grid"></div>
+    <p id="mode-warn" class="warn-box" hidden></p>
+    <h3 class="h3">共通の条件</h3>
     <div class="grid">
-      <label>月に売れている個数（最低）
+      <label class="basic-only">月に売れている個数（最低）
         <input type="number" id="f-minSold" min="0" step="10"><small>個以上</small></label>
-      <label>出品者の数（最大）
+      <label class="basic-only">出品者の数（最大）
         <input type="number" id="f-maxSellers" min="0" step="1"><small>人以下（空欄で制限なし）</small></label>
-      <label>販売価格（下限）
+      <label class="basic-only">販売価格（下限）
         <input type="number" id="f-minPrice" min="0" step="100"><small>円以上</small></label>
       <label>販売価格（上限）
         <input type="number" id="f-maxPrice" min="0" step="100"><small>円以下（空欄で制限なし）</small></label>
@@ -61,8 +71,15 @@
         <option value="goodBrand">通りやすいメーカーの商品だけ</option>
       </select>
     </label>
-    <label class="check"><input type="checkbox" id="f-noAmazon"> Amazon本体がよく販売している商品を除く（価格競争で勝ちにくいため）</label>
-    <p class="note">販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します（品切れで一時的に値上がりした価格をあてにしないため）。「仕入れ上限」＝ 販売価格 − 販売手数料 − FBA手数料 − その他の経費 − 欲しい利益。<strong>この金額以下で仕入れられれば、欲しい利益が残ります。</strong></p>
+    <label class="check"><input type="checkbox" id="f-noRisingSellers"> 出品者が増えている商品を除く（出品者が増えると値下がりしやすいため）</label>
+    <label class="check"><input type="checkbox" id="f-showUnknownSold"> 月の販売数が分からない商品も表示する（Keepaに数字が出ていなくても売れている商品があるため。表示された商品は「DATA → オファー」で売れているか確認）</label>
+    <label class="check"><input type="checkbox" id="f-selfShipOn"> 自己配送（自分で発送）で売る場合の仕入れ上限も表示する（FBA手数料がかからないため、FBAでは利益が出ない小物でも利益が出ることがある。リベ大「自己配送 始め方 マニュアル」より）</label>
+    <div class="grid self-ship-grid">
+      <label>自己配送の送料（1個あたり）
+        <input type="number" id="f-selfShip" min="0" step="10"><small>円（ネコポスなら200円弱。厚さ2.5cm以下の小物）</small></label>
+    </div>
+    <label class="check basic-only"><input type="checkbox" id="f-noAmazon"> Amazon本体がよく販売している商品を除く（価格競争で勝ちにくいため）</label>
+    <p class="note"><span id="price-basis"></span>「仕入れ上限」＝ 販売価格 − 販売手数料 − FBA手数料 − その他の経費 − 欲しい利益。<strong>この金額以下で仕入れられれば、欲しい利益が残ります。</strong></p>
     </details>
   </section>
 
@@ -91,6 +108,7 @@
       <h2>4. 候補の商品 <span id="count"></span></h2>
       <label class="sort-box" id="sort-box" hidden>並び順
         <select id="sort-select">
+          <option value="score:d">手法のおすすめ順</option>
           <option value="sold:d">月の販売数が多い順</option>
           <option value="limit:d">仕入れ上限が高い順</option>
           <option value="price:a">販売価格が安い順</option>
@@ -121,7 +139,37 @@
   </section>
 
   <section class="card">
-    <h2>5. メーカー別の出品チェック記録</h2>
+    <h2>5. ポイント・クーポン込みの仕入れ値を計算</h2>
+    <p class="note">楽天・Yahoo!ショッピングなどで、クーポンとポイントを引いた「実質の仕入れ値」と見込み利益を計算します。計算式はリベ大の合宿（Claude×新品せどり合宿 2コマ目）のプロンプト集どおりです。商品の「ポイント込みで計算」を押すと、販売価格と手数料が入ります。</p>
+    <p id="c-target" class="sub" hidden></p>
+    <div class="grid">
+      <label>表示価格（税込）
+        <input type="number" id="c-price" min="0" step="1" inputmode="numeric"><small>円</small></label>
+      <label>送料
+        <input type="number" id="c-ship" min="0" step="1" inputmode="numeric"><small>円（送料無料なら空欄）</small></label>
+      <label>クーポン
+        <input type="text" id="c-coupon" inputmode="decimal" placeholder="例: 2500 または 5%"><small>円引きなら金額、％引きなら「5%」</small></label>
+      <label>クーポンの値引き上限
+        <input type="number" id="c-couponMax" min="0" step="1" inputmode="numeric"><small>円（％引きで上限があるときだけ）</small></label>
+      <label>ポイント率
+        <input type="number" id="c-point" min="0" step="0.5" inputmode="decimal"><small>％（キャンペーンにエントリーした後の率）</small></label>
+      <label>Amazonの販売価格
+        <input type="number" id="c-sell" min="0" step="1" inputmode="numeric"><small>円</small></label>
+      <label>Amazon手数料の合計
+        <input type="number" id="c-fee" min="0" step="1" inputmode="numeric"><small>円（販売手数料＋FBA手数料）</small></label>
+    </div>
+    <div class="tiles calc-tiles" id="c-result">
+      <div class="tile"><span>クーポン値引き</span><strong id="c-r-coupon">—</strong></div>
+      <div class="tile"><span>もらえるポイント</span><strong id="c-r-points">—</strong></div>
+      <div class="tile main"><span>実質の仕入れ値</span><strong id="c-r-real">—</strong></div>
+      <div class="tile main"><span>見込み利益</span><strong id="c-r-profit">—</strong><small id="c-r-rate"></small></div>
+      <div class="tile"><span>損益分岐</span><strong id="c-r-break">—</strong><small>これ以下でしか売れないと赤字</small></div>
+    </div>
+    <p class="note">もらえるポイント ＝（表示価格 ÷ 1.1 − クーポン値引き）× ポイント率（切り捨て）／実質の仕入れ値 ＝ 表示価格 ＋ 送料 − クーポン値引き − もらえるポイント／見込み利益 ＝ 販売価格 − 手数料 − 実質の仕入れ値。ポイントは現金になるまで時間がかかるので、資金の流れ（キャッシュフロー）に注意してください。</p>
+  </section>
+
+  <section class="card">
+    <h2>6. メーカー別の出品チェック記録</h2>
     <p class="note">商品ごとに「出品チェック」を記録すると、どのメーカーが通りやすいかがここにたまっていきます。「通りやすい」＝通った件数が、通らなかった件数より多いメーカーです。</p>
     <p id="brand-empty" class="note">まだ記録がありません。</p>
     <div class="table-wrap">

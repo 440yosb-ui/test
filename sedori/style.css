@@ -9,6 +9,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
@@ -65,7 +66,8 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
 .err { color: var(--warn); }
 summary.h2 { font-size: 17px; color: var(--text); margin-bottom: 10px; }
 .sort-box { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.sort-box select { width: auto; }
+.sort-box select { width: auto; max-width: 100%; }
+.sort-box { min-width: 0; }
 #bulk-btn { margin: 4px 0 10px; }
 
 .check-filter { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; margin-top: 12px; max-width: 420px; }
@@ -78,6 +80,20 @@ summary.h2 { font-size: 17px; color: var(--text); margin-bottom: 10px; }
 table.plain { min-width: 0; }
 .judge-good { color: var(--good); font-weight: 700; }
 .judge-bad { color: var(--warn); font-weight: 700; }
+
+.mode-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.mode-btn { cursor: pointer; font: inherit; font-weight: 600; padding: 7px 16px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--text); }
+.mode-btn.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mode-grid { margin: 12px 0; }
+.self-ship-grid { margin: 6px 0 4px; }
+.calc-tiles { margin-top: 12px; }
+#c-target { margin: 0 0 8px; }
+.keepa-list { margin: 6px 0 0; padding-left: 20px; font-size: 13.5px; }
+.h3 { font-size: 14px; margin: 16px 0 8px; color: var(--muted); }
+.warn-box { border: 1px solid var(--warn); color: var(--warn); border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin: 10px 0; }
+.hl { display: inline-block; background: var(--good-bg); color: var(--good); border-radius: 6px; padding: 2px 8px;
+  font-size: 12.5px; font-weight: 700; margin: 4px 0 2px; }
 
 .nav { display: flex; gap: 8px; margin-bottom: 12px; }
 .nav a { flex: 1; max-width: 200px; text-align: center; padding: 10px; border-radius: 8px; border: 1px solid var(--line);
@@ -114,6 +130,8 @@ input[type=date] { font: inherit; font-size: 16px; padding: 7px 9px; border: 1px
   .file-btn { display: block; text-align: center; padding: 14px; font-size: 17px; }
   .status { display: block; margin: 8px 0 0; }
   .sub-btn { padding: 11px 16px; min-height: 44px; }
+  .mode-btn { min-height: 44px; padding: 10px 16px; font-size: 15px; }
+  .hl { font-size: 13.5px; }
   #bulk-btn { width: 100%; }
   .check { padding: 6px 0; }
   .check input { width: 20px; height: 20px; vertical-align: middle; }
