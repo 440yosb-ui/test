@@ -23,6 +23,8 @@
     { key: 'avgNew', label: '90日間の平均価格（新品の最安値）', pats: [/^new: ?90 ?days avg/i, /^新品: ?90 ?日平均/] },
     { key: 'amazon', label: 'Amazon本体の価格', pats: [/^amazon: current/i, /^amazon: 現在/i, /^amazon.*現在/i] },
     { key: 'amazonShare', label: 'Amazon本体が販売していた割合（90日）', pats: [/^buy box: ?% ?amazon/i] },
+    // 過去の最低価格（列名は推測。Keepaの「新品: 最低」など。無ければこの判定は出さない）
+    { key: 'lowNew', label: '新品の過去最低価格', pats: [/^new: ?lowest/i, /^新品: ?(最低|最安)/] },
     { key: 'avgNew30', label: '30日間の平均価格（新品の最安値）', pats: [/^new: ?30 ?days avg/i, /^新品: ?30 ?日平均/] },
     { key: 'drop1', label: '新品価格の下落率（1日・％）', pats: [/^new: ?1 ?days?.*drop/i, /^新品: ?1 ?日.*下落/] },
     { key: 'drop30', label: '新品価格の下落率（30日・％）', pats: [/^new: ?30 ?days?.*drop/i, /^新品: ?30 ?日.*下落/] },
@@ -362,6 +364,16 @@
         ? { text: 'FBAでは利益が出ませんが、自己配送なら仕入れ上限 ' + yen(it.limitSelf), hl: true }
         : { text: '自己配送なら仕入れ上限 ' + yen(it.limitSelf) + '（FBAより ' + yen(it.limitSelf - it.limit) + ' 高い）' });
     }
+    // 合宿スライド2コマ目: 月販数 ÷ 出品者数 ＝ 1人あたり月に売れる個数の目安（1か月以内に売り切れる数を仕入れる）
+    if (it.sold != null && it.sellers != null && it.sellers > 0) {
+      it.lines.push({ text: '月の販売数 ' + it.sold + ' ÷ 出品者 ' + it.sellers + '人 ＝ 1人あたり月 約' + Math.max(1, Math.floor(it.sold / it.sellers)) + '個（1か月で売り切れる数の目安）' });
+    }
+    // 合宿スライド2コマ目: 過去最低価格まで下がっても赤字にならないか（底値で判断）
+    if (it.limitAtLow != null) {
+      it.lines.push(it.limitAtLow > 0
+        ? { text: '過去最低 ' + yen(it.low) + ' まで下がっても、仕入れ ' + yen(it.limitAtLow) + ' 以下なら赤字になりません' }
+        : { text: '過去最低 ' + yen(it.low) + ' まで下がると、どの値段で仕入れても赤字です', warn: true });
+    }
     if (it.sold == null) it.lines.push({ text: '月の販売数が分かりません。Keepaの「DATA → オファー」で在庫が減っているか（売れているか）を確かめてください', warn: true });
   }
   function pctText(n) { return (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '%'; }
@@ -421,7 +433,9 @@
         // 90日間に売れた回数。列が無ければ月の販売数の3か月分で代用する
         drops: drops90 != null ? drops90 : (sold != null ? sold * 3 : null),
         rise1: rise('drop1', null), rise30: rise('drop30', num(cell(r, 'avgNew30'))), rise90: rise('drop90', avgNew90),
-        rank: rank, rankUp: rankUp, coupon: coupon,
+        rank: rank, rankUp: rankUp, coupon: coupon, low: num(cell(r, 'lowNew')),
+        // 過去最低価格まで下がったときの仕入れ上限（合宿スライド2コマ目「過去最低販売価格と損益分岐」）
+        limitAtLow: null,
         price: null, fees: null, limit: null, feesEstimated: estimated,
         buy: null, score: null, lines: [], priceNote: null
       };
@@ -435,6 +449,7 @@
         // 自己配送ならFBA手数料の代わりに送料がかかる（リベ大「自己配送 始め方 マニュアル」）
         it.limitSelf = (sell == null || selfShip == null) ? null : Math.round(sell - sell * pct / 100 - selfShip - other - profit);
       };
+      if (it.low != null && it.low > 0) it.limitAtLow = Math.round(it.low - it.low * pct / 100 - fba - other);
       return it;
     });
   }
