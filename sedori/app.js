@@ -624,6 +624,9 @@
     if (text != null) e.textContent = text;
     return e;
   }
+  // 利益管理の記録の置き場所（利用者のドライブのスプレッドシート。中身は本人しか開けない）
+  var LEDGER_URL = 'https://docs.google.com/spreadsheets/d/1zmEFi8Nfk5gKyiq4HaFsI5hpCOBg5VGbB9tViGZNUaM/edit#gid=0';
+
   function link(text, url, cls) {
     var a = el('a', cls, text);
     a.href = url; a.target = '_blank'; a.rel = 'noopener';
@@ -726,11 +729,15 @@
     copy.addEventListener('click', function () { copyText(it.asin, copy); });
     tools.appendChild(copy);
     tools.appendChild(link('セラーセントラルで確認', 'https://sellercentral.amazon.co.jp/product-search/search?q=' + encodeURIComponent(it.asin), 'mini'));
-    // 利益管理の画面を別タブで開き、商品の情報を入力欄に引き継ぐ
-    var q = new URLSearchParams({ add: '1', title: it.title, brand: it.brand, asin: it.asin });
-    if (it.price != null) q.set('sellPrice', String(it.price));
-    if (it.fees != null) q.set('fee', String(it.fees));
-    tools.appendChild(link('仕入れを記録', 'kanri.html?' + q.toString(), 'mini'));
+    // 利益管理のスプレッドシート（利用者のドライブ。PCとスマホで共有。2026-11-23 移行）を開く。
+    // 同時に「商品名・メーカー・ASIN・JAN」をタブ区切りでコピーする（PCでは「商品名」の列に貼ると4列に分かれて入る）。
+    var rec = link('仕入れを記録', LEDGER_URL, 'mini');
+    rec.title = '利益管理のスプレッドシートを開きます。商品名・メーカー・ASIN・JANをコピーするので「仕入れ」タブの「商品名」の列に貼り付けてください';
+    rec.addEventListener('click', function () {
+      var line = [it.title, it.brand, it.asin, it.jan].map(function (v) { return v == null ? '' : String(v).replace(/[\t\n]/g, ' '); }).join('\t');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(line).catch(function () {});
+    });
+    tools.appendChild(rec);
     var calcBtn = el('button', 'mini', 'ポイント込みで計算');
     calcBtn.type = 'button';
     calcBtn.title = 'この商品の販売価格と手数料を、下の「5. ポイント・クーポン込みの仕入れ値を計算」に入れます';
