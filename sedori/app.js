@@ -374,6 +374,15 @@
         ? { text: '過去最低 ' + yen(it.low) + ' まで下がっても、仕入れ ' + yen(it.limitAtLow) + ' 以下なら赤字になりません' }
         : { text: '過去最低 ' + yen(it.low) + ' まで下がると、どの値段で仕入れても赤字です', warn: true });
     }
+    // リベ大 オンラインスクール合宿（2025-08-02）2コマ目「利益品候補の目安」: 電脳せどりは利益率10%程度（店舗は20%以上かつ400円以上、回転の良い商品は15%でも可）
+    if (it.net != null && it.price) {
+      var limit10 = Math.round(it.net - it.price * 0.10);
+      it.lines.push(limit10 > 0
+        ? { text: '利益率10%（' + yen(Math.round(it.price * 0.10)) + '）を残すなら、仕入れ ' + yen(limit10) + ' 以下（リベ大の目安: ネット仕入れは利益率10%程度）' }
+        : { text: '販売価格の10%の利益を残せる仕入れ値がありません（手数料が高すぎます）', warn: true });
+    }
+    // 同上 番外編「出品者なしもしっかり見よう」: 出品者がいない商品は、全期間の価格を見ると高く売れていたことがある
+    if (it.sellers === 0) it.lines.push({ text: 'いま出品者がいません。Keepaで全期間の価格を見て、過去にいくらで売れていたかを確かめてください（チャンスのことがあります）', hl: true });
     if (it.sold == null) it.lines.push({ text: '月の販売数が分かりません。Keepaの「DATA → オファー」で在庫が減っているか（売れているか）を確かめてください', warn: true });
   }
   function pctText(n) { return (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '%'; }
