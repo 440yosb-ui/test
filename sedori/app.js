@@ -351,6 +351,9 @@
     return diff > 0 ? 'up' : 'down';
   }
   // どの手法でも共通で出す注意書き
+  // 出品規制がかかりやすいメーカー（ドライブ「出品規制解除の方法を1から完全解説」で例に挙がったもの）
+  var RESTRICTED_BRAND = /パナソニック|panasonic|ソニー|sony|マイクロソフト|microsoft|キヤノン|キャノン|canon|バンダイ|bandai|タカラトミー|takara\s*tomy|ノースフェイス|ノース・フェイス|north\s*face/i;
+
   function addCommonLines(it) {
     var t = sellerTrend(it);
     var avgText = '30日平均 ' + Math.round(it.sellersAvg) + '人 → いま ' + it.sellers + '人';
@@ -380,6 +383,10 @@
       it.lines.push(limit10 > 0
         ? { text: '利益率10%（' + yen(Math.round(it.price * 0.10)) + '）を残すなら、仕入れ ' + yen(limit10) + ' 以下（リベ大の目安: ネット仕入れは利益率10%程度）' }
         : { text: '販売価格の10%の利益を残せる仕入れ値がありません（手数料が高すぎます）', warn: true });
+    }
+    // ドライブ「初心者でも分かるAmazon出品規制解除の方法を1から完全解説」（せどり公式チャンネル）: 規制がかかりやすいメーカーの例
+    if (!checks[it.asin] && RESTRICTED_BRAND.test(it.brand || '')) {
+      it.lines.push({ text: '出品規制がかかりやすいメーカーです。仕入れる前にセラーアプリで出品できるか確かめてください（書類が要る場合、楽天などの領収書で解除できることもあります）', warn: true });
     }
     // 同上 番外編「出品者なしもしっかり見よう」: 出品者がいない商品は、全期間の価格を見ると高く売れていたことがある
     if (it.sellers === 0) it.lines.push({ text: 'いま出品者がいません。Keepaで全期間の価格を見て、過去にいくらで売れていたかを確かめてください（チャンスのことがあります）', hl: true });
