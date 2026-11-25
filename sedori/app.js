@@ -704,6 +704,7 @@
     tbody.textContent = '';
     shown.forEach(function (it) {
       var tr = document.createElement('tr');
+      tr.dataset.brand = it.brand || '';   // 毎朝の補助スクリプト（tools/research.js）がブランドを読むため
 
       var tdTitle = el('td', 'title');
       tdTitle.appendChild(link(it.title || it.asin, 'https://www.amazon.co.jp/dp/' + encodeURIComponent(it.asin)));
