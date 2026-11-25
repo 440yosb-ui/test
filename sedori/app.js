@@ -52,6 +52,7 @@
   var DEFAULTS = {
     minSold: 100, maxSellers: 15, minPrice: 1000, maxPrice: '', minProfit: 200, otherCost: 50,
     defPct: 10, defFba: 500, keyword: '', noAmazon: true, checkFilter: 'all',
+    unlockQty: 10, unlockBudget: '',
     noRisingSellers: true, showUnknownSold: false,
     // 自己配送（自分で発送）した場合の計算。送料の初期値はリベ大「自己配送 始め方 マニュアル」（じゅんK）の「ネコポスだと送料200円/個弱」より
     selfShipOn: false, selfShip: 200,
@@ -668,6 +669,7 @@
     $('bulk-btn').hidden = all.length === 0 || !hasShopApi();
     $('sort-box').hidden = all.length === 0;
 
+    renderUnlock(all);
     var stats = brandStats();
     var tbody = $('rows');
     tbody.textContent = '';
@@ -834,6 +836,72 @@
     calc();
     $('c-price').scrollIntoView({ behavior: 'smooth', block: 'center' });
     $('c-price').focus({ preventScroll: true });
+  }
+
+  // ---------- 規制解除の候補ブランド ----------
+  // 出品規制の解除には、Amazon以外で同じブランドの商品をまとめて仕入れた領収書・請求書が要ることが多い（多くは10個以上）。
+  // そこで「解除用にまとめて仕入れても売り切れて、解除したあとも利益商品が多いブランド」を上から並べる。
+  // 根拠: リベ大 合宿（2025-08）2コマ目「1か月で売り切れる数、遅くとも3か月以内」／ドライブ「出品規制解除の方法を1から完全解説」
+  //       「中長期で扱うメーカー」「解除の費用を利益で回収できるか」「同じメーカーの安い商品で解除する」。
+  function monthsToSell(it, qty) {
+    if (it.sold == null || it.sold <= 0) return null;
+    // 自分も出品者に加わるので、出品者数に1を足して1人あたりの販売数を出す
+    var perSeller = it.sold / ((it.sellers || 0) + 1);
+    return qty / perSeller;
+  }
+  function unlockBrands(items) {
+    var qty = Math.max(1, Math.round(settingNum('unlockQty') || 10));
+    var budget = settingNum('unlockBudget');
+    var stats = brandStats();
+    var groups = {};
+    items.forEach(function (it) {
+      var k = brandKey(it.brand);
+      if (!k) return;
+      (groups[k] = groups[k] || { name: it.brand, items: [] }).items.push(it);
+    });
+    var list = Object.keys(groups).map(function (k) {
+      var g = groups[k], st = stats[k];
+      g.cleared = !!(st && st.ok + st.applied > 0);     // 出品できる／申請で通った記録があるブランドは解除済みとみなす
+      g.docs = !!(st && st.docs > 0);
+      g.sold = g.items.reduce(function (a, it) { return a + (it.sold || 0); }, 0);
+      // 解除用の商品: まとめて仕入れても3か月以内に売り切れる商品のうち、まとめ買いの費用（仕入れ上限×個数）が小さいもの
+      var picks = g.items.map(function (it) {
+        return { it: it, months: monthsToSell(it, qty), cost: it.limit != null ? it.limit * qty : null };
+      }).filter(function (x) {
+        // 出品者が1人だけの商品はメーカー公式の可能性があり、真贋調査を受けやすいので解除用には選ばない
+        if (x.it.sellers === 1) return false;
+        return x.months != null && x.months <= 3 && x.cost != null && x.cost > 0 && (budget == null || x.cost <= budget);
+      }).sort(function (a, b) { return (a.months <= 1 ? 0 : 1) - (b.months <= 1 ? 0 : 1) || a.cost - b.cost; });
+      g.pick = picks[0] || null;
+      return g;
+    }).filter(function (g) { return !g.cleared && g.pick; })
+      .sort(function (a, b) { return b.items.length - a.items.length || b.sold - a.sold; });
+    return { qty: qty, list: list };
+  }
+  function renderUnlock(items) {
+    var r = unlockBrands(items);
+    var tbody = $('unlock-rows');
+    tbody.textContent = '';
+    $('unlock-empty').hidden = r.list.length > 0;
+    $('unlock-empty').textContent = '条件に合うブランドがありません。上の条件や予算をゆるめると見つかることがあります。';
+    $('unlock-table').hidden = r.list.length === 0;
+    $('unlock-qty-label').textContent = r.qty;
+    r.list.slice(0, 30).forEach(function (g) {
+      var tr = document.createElement('tr');
+      var td = el('td', 'title', g.name);
+      if (g.docs) td.appendChild(el('div', 'sub warn', '書類が必要と記録済み'));
+      if (RESTRICTED_BRAND.test(g.name)) td.appendChild(el('div', 'sub', '規制が多いメーカーの例に入っています'));
+      tr.appendChild(td);
+      tr.appendChild(el('td', 'num', String(g.items.length)));
+      tr.appendChild(el('td', 'num', g.sold.toLocaleString('ja-JP')));
+      var p = g.pick, tdPick = el('td', 'title');
+      tdPick.appendChild(link(p.it.title || p.it.asin, 'https://keepa.com/#!product/5-' + encodeURIComponent(p.it.asin)));
+      tdPick.appendChild(el('div', 'sub', '1個 ' + yen(p.it.limit) + ' 以下で仕入れ（' + r.qty + '個で ' + yen(p.cost) + ' まで）／ 約' + (Math.round(p.months * 10) / 10) + 'か月で売り切れる見込み'));
+      tdPick.appendChild(link('楽天で探す', 'https://search.rakuten.co.jp/search/mall/' + encodeURIComponent(shopQuery(p.it)) + '/?s=2', 'mini'));
+      tr.appendChild(tdPick);
+      ['ブランド', '条件に合った商品', '月の販売数（合計）', '解除用に仕入れる商品'].forEach(function (label, i) { tr.children[i].dataset.label = label; });
+      tbody.appendChild(tr);
+    });
   }
 
   function renderBrands() {
@@ -1030,7 +1098,7 @@
 
   // ---------- 画面の入力とつなぐ ----------
 
-  var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword', 'selfShip'];
+  var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword', 'selfShip', 'unlockQty', 'unlockBudget'];
   var API_IDS = ['rakutenAppId', 'rakutenKey', 'rakutenUrl', 'yahooAppId'];
 
   // 手法の切り替えボタンと、その手法の説明・条件の入力欄を作る
