@@ -2,7 +2,7 @@
 // 毎朝の定期作業で使う補助スクリプト（画面と同じ計算をそのまま使うため、ブラウザでページを開いて結果を読む）。
 // 使い方: リポジトリの一番上で `python3 -m http.server 8765` を動かしてから
 //   node sedori/tools/research.js <KeepaのCSVファイル> [ポート番号]
-// 出力: { modes: { 手法名: { warning, items: [...] } }, unlock: [...] }
+// 出力: { modes: { 手法名: { warning, items: [...] } }, unlock: [...], sellerBrands: [{ brand, items }] }
 const { chromium } = require('playwright');
 
 (async () => {
@@ -25,6 +25,7 @@ const { chromium } = require('playwright');
     return {
       title: a ? a.textContent.trim() : '',
       asin: m ? m[1].toUpperCase() : '',
+      brand: tr.dataset.brand || '',
       price: num(td[1].childNodes[0] && td[1].childNodes[0].textContent),
       sold: num(td[2].textContent),
       sellers: num(td[3].textContent),
@@ -57,9 +58,13 @@ const { chromium } = require('playwright');
     await page.waitForTimeout(400);
     const warning = await page.$eval('#mode-warn', e => (e.hidden ? '' : e.innerText.trim())).catch(() => '');
     out.modes[name] = { warning, items: await readRows() };
-    // 規制解除の候補ブランドは「通常」の結果から作る（いちばん幅広い条件のため）
+    // 規制解除の候補ブランドは表示中の手法に関係なく「リピート向き」の結果で並ぶので、1回読めばよい
     if (name.startsWith('通常')) out.unlock = await readUnlock();
   }
+  // 出品者の商品一覧（seller_ で始まるファイル）向け: 「セラー」の結果に多いブランドを数える
+  const counts = {};
+  ((out.modes['セラー'] || {}).items || []).forEach(it => { if (it.brand) counts[it.brand] = (counts[it.brand] || 0) + 1; });
+  out.sellerBrands = Object.keys(counts).sort((x, y) => counts[y] - counts[x]).slice(0, 10).map(b => ({ brand: b, items: counts[b] }));
   console.log(JSON.stringify(out, null, 1));
   await browser.close();
 })();
