@@ -187,6 +187,23 @@
     </div>
     <p class="note">記録はこのスマホのブラウザの中に保存されます。ブラウザの履歴・データを消したり、長期間開かなかったりすると消えることがあるため、ときどきバックアップしてください。</p>
   </section>
+  <section class="card">
+    <h2>7. 規制解除の候補ブランド</h2>
+    <p class="note">出品規制がかかっているブランドは、Amazon以外のサイトで同じブランドの商品をまとめて仕入れ、その領収書や請求書を出すと解除できることが多いです（必要な個数は申請画面で確かめてください）。上の「4. 候補の商品」に残った商品をブランドごとにまとめ、<strong>解除したあとも利益商品が多いブランド</strong>から並べています。「解除用に仕入れる商品」は、<span id="unlock-qty-label">10</span>個まとめて仕入れても3か月以内に売り切れる見込みの商品のうち、費用が一番小さいものです（自分も出品者に加わる前提で計算）。出品チェックで「出品できる」「申請で通った」と記録したブランドは外します。根拠: リベ大 合宿（2025年8月）「1か月で売り切れる数、遅くとも3か月以内」、ドライブ「出品規制解除の方法を1から完全解説」。</p>
+    <div class="grid">
+      <label>解除に必要な個数
+        <input type="number" id="f-unlockQty" min="1" step="1"><small>個</small></label>
+      <label>解除用の仕入れ予算（1ブランド）
+        <input type="number" id="f-unlockBudget" min="0" step="1000"><small>円まで（空欄なら上限なし）</small></label>
+    </div>
+    <p id="unlock-empty" class="note">ファイルを読み込むと、ここに候補のブランドが表示されます。</p>
+    <div class="table-wrap">
+      <table id="unlock-table" class="plain" hidden>
+        <thead><tr><th>ブランド</th><th class="num">条件に合った商品</th><th class="num">月の販売数（合計）</th><th>解除用に仕入れる商品</th></tr></thead>
+        <tbody id="unlock-rows"></tbody>
+      </table>
+    </div>
+  </section>
 </main>
 
 <script src="app.js"></script>
