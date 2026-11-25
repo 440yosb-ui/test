@@ -116,6 +116,18 @@
       ], needs: ['rise1', 'avg90'], soft: ['amazonOos', 'drops'] },
     // 根拠: リベシティ ノウハウ図書館「電脳せどりはたった一つのことだけやっておけば必ず稼げる！」（じゅんK）と
     // YouTube「【セラーリサーチ】トップセラーの戦略をKeepaで丸裸に…」。月販50個は合宿スライド4コマ目より。
+    { key: 'repeat', label: 'リピート向き', sort: 'score:d',
+      // 利用者の方針（2026-11-26）: 一時的な値下がりを刈り取るより、いつも安い仕入れ先がある商品をくり返し補充する形を目指す。
+      // 根拠: ドライブ「出品規制解除の方法を1から完全解説」（縦積みできる商品・リピート商品・中長期で扱うメーカーは解除する価値がある）、
+      //       リベ大 合宿（2025-08）「初心者は回転を優先し、1か月で売り切れる数を仕入れる」。
+      // 値動きの初期値15％は、この画面の「一時的に高い」の目安（PRICE_SPIKE＝1.15倍）に合わせたもので、資料の数字ではない（調整してよい）。
+      desc: '値段が安定していて毎月よく売れている商品を探します。いつも安く買える仕入れ先を見つけて、Amazonの在庫が減るたびに補充していく「くり返し仕入れ」向きの商品です。出品規制を解除するなら、くり返し仕入れられるブランドほど解除の手間が生きます。',
+      basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します。値段が大きく動いていないこと、出品者が増えていないこと、Amazon本体があまり売っていないことを条件にしています。見つけた商品は、楽天やYahoo!、メーカーや家電量販店のサイトで「いつも仕入れ上限より安く買えるか」を確かめ、仕入れ先を記録してください。',
+      keepa: ['先月の購入：50 から', '新品（現在価格）：3000 から', '新品アイテム数（30日平均）：2 から', '（任意）新品「90日間の下落％」：-15 から 15（値段が安定した商品に絞る）', VARIATION_TIP],
+      params: [
+        { key: 'minSold', label: '月に売れている個数（最低）', unit: '個以上', def: 50, step: 10 },
+        { key: 'maxSwing', label: '値段の動き（30日・90日の上下）', unit: '％以内', def: 15, step: 5 }
+      ], needs: [], soft: ['rise90'] },
     { key: 'seller', label: 'セラー', sort: 'sold:d',
       desc: 'リベ大の記事で最も勧められている方法です（じゅんKさんは月100万円の仕入れをほぼこれだけで行っているそうです）。利益が出た商品を1つ見つけたら、その商品を売っている出品者（セラー）の商品一覧から、ほかの利益商品を拾います。出品数が100件前後の、自分より少し上くらいの個人の出品者を選びます（数千件の業者は手法が違うので避ける）。',
       basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します。出品者が仕入れに失敗している商品もあるので、最後は必ず自分でKeepaのグラフを見て判断してください。自己発送で最安値より高い出品や、相場より明らかに高い出品は、リサーチよけの「ダミー商品」のことがあります。',
@@ -546,6 +558,21 @@
       it.score = it.net - it.buy;
       return true;
     },
+    repeat: function (it, p) {
+      it.setSell((it.current != null && it.avg != null) ? Math.min(it.current, it.avg) : (it.current != null ? it.current : it.avg));
+      if (it.price == null || !soldOk(it, p.minSold)) return false;
+      if (settings.noAmazon && it.amazonSells) return false;
+      // 値段の動き: 30日・90日の上下のうち大きいほう。列が無ければ、いまの価格と90日平均の差で見る。
+      var swings = [it.rise30, it.rise90].filter(function (v) { return v != null; }).map(Math.abs);
+      if (!swings.length && it.current != null && it.avg) swings.push(Math.abs(it.current - it.avg) / it.avg * 100);
+      var swing = swings.length ? Math.max.apply(null, swings) : null;
+      if (p.maxSwing != null && p.maxSwing > 0 && (swing == null || swing > p.maxSwing)) return false;
+      if (sellerTrend(it) === 'up') return false;
+      var per = (it.sold != null && it.sellers != null) ? it.sold / (it.sellers + 1) : null;
+      it.lines.push({ text: '値段が安定（上下 ' + (swing == null ? '不明' : Math.round(swing) + '%') + '）' + (per != null ? ' ／ 自分が加わると1人あたり月 約' + Math.max(1, Math.floor(per)) + '個 → 毎月の補充の目安' : ''), hl: true });
+      it.score = per != null ? per : (it.sold || 0) / 10;
+      return true;
+    },
     seller: function (it, p) {
       it.setSell((it.current != null && it.avg != null) ? Math.min(it.current, it.avg) : (it.current != null ? it.current : it.avg));
       if (it.price == null || !soldOk(it, p.minSold)) return false;
@@ -580,8 +607,8 @@
     avail.drops = mapping.drops90 >= 0 || mapping.sold >= 0;
   }
 
-  function applyFilters(items) {
-    var mode = currentMode();
+  function applyFilters(items, modeOverride) {
+    var mode = modeOverride || currentMode();
     var p = modeParams(mode);
     var maxPrice = settingNum('maxPrice');
     var kw = String(settings.keyword || '').trim().toLowerCase();
@@ -669,7 +696,9 @@
     $('bulk-btn').hidden = all.length === 0 || !hasShopApi();
     $('sort-box').hidden = all.length === 0;
 
-    renderUnlock(all);
+    // 規制解除の候補ブランドは「リピート向き」の結果で並べる（利用者の方針、2026-11-26）。
+    var repeatMode = MODES.filter(function (m) { return m.key === 'repeat'; })[0];
+    renderUnlock(currentMode() === repeatMode ? all : applyFilters(buildItems(), repeatMode));
     var stats = brandStats();
     var tbody = $('rows');
     tbody.textContent = '';
