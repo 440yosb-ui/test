@@ -811,6 +811,9 @@
       // 大手ネットショップでの仕入れ先探し（ドライブ「電脳せどりの始め方」: ヨドバシ・ビックカメラなど総合サイトでの仕入れ）。開くのは利用者
       tdLinks.appendChild(link('ヨドバシ', 'https://www.yodobashi.com/?word=' + encodeURIComponent(q), 'mini'));
       tdLinks.appendChild(link('ビックカメラ', 'https://www.biccamera.com/bc/category/?q=' + encodeURIComponent(q), 'mini'));
+      // 大手以外のお店もまとめて見比べる（利用者の依頼 2026-11-26）。新しいお店は下の「新しいお店で買う前のチェック」で確かめる
+      tdLinks.appendChild(link('Googleショッピング', 'https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q), 'mini'));
+      tdLinks.appendChild(link('価格.com', 'https://search.kakaku.com/' + encodeURIComponent(q) + '/', 'mini'));
       tdLinks.appendChild(link('Keepa', 'https://keepa.com/#!product/5-' + encodeURIComponent(it.asin), 'mini'));
       tr.appendChild(tdLinks);
 

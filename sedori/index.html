@@ -121,6 +121,17 @@
       </label>
     </div>
     <button type="button" id="bulk-btn" class="sub-btn" hidden>上から20件の他サイト価格をまとめて取得</button>
+    <details id="shop-check">
+      <summary>新しいお店で買う前のチェック（詐欺サイトに注意）</summary>
+      <p class="note">Googleショッピングや価格.comで見つけた、はじめてのお店で買う前に確かめます。一般的な注意点で、資料の内容ではありません。確かめた結果は、利益管理の「仕入れ」タブの「仕入れ先の確認」にメモしておくと、次から調べ直さずに済みます。</p>
+      <ul class="note">
+        <li><strong>支払い方法</strong>：クレジットカード・代引き・コンビニ払い・モール（楽天・Yahoo!など）の決済が使えるか。<strong>銀行振込だけのお店は要注意</strong>。振込先が個人名義なら特に危険。</li>
+        <li><strong>会社の情報</strong>：「特定商取引法に基づく表記」に、会社名・住所・電話番号・責任者の名前がそろっているか。</li>
+        <li><strong>値段</strong>：ほかのお店より極端に安い（半額以下など）のは要注意。</li>
+        <li><strong>見た目</strong>：日本語が不自然、サイトのアドレス（URL）が会社名と関係ない、連絡先がフリーメールだけ、など。</li>
+        <li>迷ったら、そのお店の支払い方法と特定商取引法の表記のページを撮って、Claude（実務担当）に送れば一緒に確かめます。</li>
+      </ul>
+    </details>
     <p id="empty" class="note">ファイルを読み込むと、ここに候補が表示されます。</p>
     <div class="table-wrap">
       <table id="result" hidden>
