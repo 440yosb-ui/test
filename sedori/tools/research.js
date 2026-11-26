@@ -2,7 +2,7 @@
 // 毎朝の定期作業で使う補助スクリプト（画面と同じ計算をそのまま使うため、ブラウザでページを開いて結果を読む）。
 // 使い方: リポジトリの一番上で `python3 -m http.server 8765` を動かしてから
 //   node sedori/tools/research.js <KeepaのCSVファイル> [ポート番号]
-// 出力: { modes: { 手法名: { warning, items: [...] } }, unlock: [...], sellerBrands: [{ brand, items }] }
+// 出力: { modes: { 手法名: { warning, items: [...] } }, unlock: [...], sellerBrands: [{ brand, items }], repeatByCategory / repeatByBrand: [{ name, items, sold }] }
 const { chromium } = require('playwright');
 
 (async () => {
@@ -27,6 +27,7 @@ const { chromium } = require('playwright');
       asin: m ? m[1].toUpperCase() : '',
       brand: tr.dataset.brand || '',
       parent: tr.dataset.parent || '',
+      category: tr.dataset.category || '',
       price: num(td[1].childNodes[0] && td[1].childNodes[0].textContent),
       sold: num(td[2].textContent),
       sellers: num(td[3].textContent),
@@ -66,6 +67,20 @@ const { chromium } = require('playwright');
   const counts = {};
   ((out.modes['セラー'] || {}).items || []).forEach(it => { if (it.brand) counts[it.brand] = (counts[it.brand] || 0) + 1; });
   out.sellerBrands = Object.keys(counts).sort((x, y) => counts[y] - counts[x]).slice(0, 10).map(b => ({ brand: b, items: counts[b] }));
+  // 「リピート向き」の結果をジャンル・ブランドごとに集計（ジャンルを選ぶ材料。せどり事業 ロードマップの依頼）
+  const tally = key => {
+    const g = {};
+    ((out.modes['リピート向き'] || {}).items || []).forEach(it => {
+      const k = it[key] || '（不明）';
+      const e = g[k] = g[k] || { name: k, series: new Set(), sold: 0 };
+      e.series.add(it.parent || it.asin);
+      e.sold += it.sold || 0;
+    });
+    return Object.values(g).map(e => ({ name: e.name, items: e.series.size, sold: e.sold }))
+      .sort((a, b) => b.items - a.items || b.sold - a.sold).slice(0, 15);
+  };
+  out.repeatByCategory = tally('category');
+  out.repeatByBrand = tally('brand');
   console.log(JSON.stringify(out, null, 1));
   await browser.close();
 })();

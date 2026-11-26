@@ -60,6 +60,8 @@
     unlockQty: 10, unlockBudget: '',
     // 小口出品の基本成約料（1点売れるごとに約100円。ドライブ「Amazon物販の始め方」）。大口出品（月額制）に切り替えたら0にする。利用者の指示（2026-11-26）で当面は入れる
     smallFee: 100,
+    // 化粧品など女性向けの商品を除く（利用者の判断。相場感がないため。せどり事業 ロードマップ 2026-11-26）
+    noWomen: true,
     noRisingSellers: true, showUnknownSold: false,
     // 自己配送（自分で発送）した場合の計算。送料の初期値はリベ大「自己配送 始め方 マニュアル」（じゅんK）の「ネコポスだと送料200円/個弱」より
     selfShipOn: false, selfShip: 200,
@@ -662,6 +664,12 @@
     avail.drops = mapping.drops90 >= 0 || mapping.sold >= 0;
   }
 
+  // 化粧品など女性向けの商品の見分け（カテゴリーと商品名の言葉で判断。完全ではないので、迷う商品は自分で確かめる）
+  var WOMEN_CATEGORY = /ビューティー|beauty|コスメ|化粧品|ファッション|fashion|ジュエリー|jewelry/i;
+  var WOMEN_WORDS = /化粧水|乳液|美容液|美容クリーム|ファンデーション|コンシーラー|口紅|リップ(スティック|グロス|ティント)|アイシャドウ|アイライナー|マスカラ|チーク|マニキュア|ネイル|ヘアカラー|白髪染め|コスメ|メイク|クレンジング|フェイスパック|シートマスク|生理用|ナプキン|ブラジャー|ショーツ|レディース|婦人|女性用/;
+  function isWomenItem(it) {
+    return WOMEN_CATEGORY.test(it.category || '') || WOMEN_WORDS.test(it.title || '');
+  }
   function applyFilters(items, modeOverride) {
     var mode = modeOverride || currentMode();
     var p = modeParams(mode);
@@ -675,6 +683,7 @@
       if (cf === 'passed' && !(chk && isPass(chk.status))) return false;
       if (cf === 'goodBrand' && !isGoodBrand(stats[brandKey(it.brand)])) return false;
       if (kw && (it.title + ' ' + it.brand + ' ' + it.model).toLowerCase().indexOf(kw) === -1) return false;
+      if (settings.noWomen && isWomenItem(it)) return false;
       if (!EVAL[mode.key](it, p)) return false;
       // トレンドは「出品者が急に減る」のが特徴なので、増加中の除外だけを行い、どの手法でも同じ扱いにする
       if (settings.noRisingSellers && sellerTrend(it) === 'up') return false;
@@ -767,7 +776,8 @@
     shown.forEach(function (it) {
       var tr = document.createElement('tr');
       tr.dataset.brand = it.brand || '';
-      tr.dataset.parent = it.parent || '';   // 毎朝の補助スクリプト（tools/research.js）がブランドを読むため
+      tr.dataset.parent = it.parent || '';
+      tr.dataset.category = it.category || '';   // 毎朝の補助スクリプト（tools/research.js）がブランドを読むため
 
       var tdTitle = el('td', 'title');
       tdTitle.appendChild(link(it.title || it.asin, 'https://www.amazon.co.jp/dp/' + encodeURIComponent(it.asin)));
@@ -1272,7 +1282,7 @@
       input.value = settings[k];
       input.addEventListener('input', function () { settings[k] = input.value; saveSettings(); render(); });
     });
-    ['noAmazon', 'noRisingSellers', 'showUnknownSold', 'selfShipOn'].forEach(function (k) {
+    ['noAmazon', 'noRisingSellers', 'showUnknownSold', 'selfShipOn', 'noWomen'].forEach(function (k) {
       var box = $('f-' + k);
       box.checked = !!settings[k];
       box.addEventListener('change', function () { settings[k] = box.checked; saveSettings(); render(); });
