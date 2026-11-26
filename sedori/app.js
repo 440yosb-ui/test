@@ -46,7 +46,12 @@
     { key: 'model', label: '型式', pats: [/^model$/i, /^モデル$/, /型番/] },
     { key: 'part', label: '型式の代わり（部品番号）', pats: [/partnumber/i, /部品番号/] },
     { key: 'category', label: 'カテゴリー', pats: [/^(categories|カテゴリ): ?(root|ルート)/i] },
-    { key: 'brand', label: 'ブランド', pats: [/^brand$/i, /^ブランド$/, /manufacturer/i, /メーカー/] }
+    { key: 'brand', label: 'ブランド', pats: [/^brand$/i, /^ブランド$/, /manufacturer/i, /メーカー/] },
+    // バリエーション（色違い・サイズ違い）用。日本語の列名は推測で、実際の Keepa ファイルでは未確認（違っていたら直す）
+    { key: 'parent', label: '親ASIN（シリーズ共通の番号）', pats: [/^parent ?asin$/i, /親 ?ASIN/i, /^バリエーション.*(親|ASIN)/] },
+    { key: 'reviews', label: 'レビュー数', pats: [/^reviews?: ?(review )?count/i, /^review count/i, /レビュー.*(数|件数)/, /評価数/] },
+    { key: 'color', label: '色', pats: [/^colou?r$/i, /^(カラー|色)$/] },
+    { key: 'size', label: 'サイズ', pats: [/^size$/i, /^サイズ$/] }
   ];
 
   var DEFAULTS = {
@@ -62,6 +67,8 @@
   };
 
   var VARIATION_TIP = 'バリエーション：「1製品につき1バリエーションのみ表示」にチェック';
+  // 色違い・サイズ違いもまとめて見るとき（リピート向き・週1回のリサーチ）。親ASINとレビュー数の列も含めて書き出す
+  var VARIATION_ALL_TIP = 'バリエーション：「1製品につき1バリエーションのみ表示」のチェックを外す（色違い・サイズ違いもまとめて見て、レビュー数の割合で売れている色・サイズを見積もるため）';
 
   // リサーチの手法。手法ごとに、絞り込みの条件・計算に使う販売価格・表示する見どころが変わる。
   // keepa: Keepa の製品ファインダーに入れる検索条件の目安（ドライブの資料より）
@@ -123,7 +130,7 @@
       // 値動きの初期値15％は、この画面の「一時的に高い」の目安（PRICE_SPIKE＝1.15倍）に合わせたもので、資料の数字ではない（調整してよい）。
       desc: '値段が安定していて毎月よく売れている商品を探します。いつも安く買える仕入れ先を見つけて、Amazonの在庫が減るたびに補充していく「くり返し仕入れ」向きの商品です。出品規制を解除するなら、くり返し仕入れられるブランドほど解除の手間が生きます。',
       basis: '販売価格は「いまの価格」と「過去90日の平均」の低いほうで計算します。値段が大きく動いていないこと、出品者が増えていないこと、Amazon本体があまり売っていないことを条件にしています。見つけた商品は、楽天やYahoo!、メーカーや家電量販店のサイトで「いつも仕入れ上限より安く買えるか」を確かめ、仕入れ先を記録してください。',
-      keepa: ['先月の購入：50 から', '新品（現在価格）：3000 から', '新品アイテム数（30日平均）：2 から', '（任意）新品「90日間の下落％」：-15 から 15（値段が安定した商品に絞る）', VARIATION_TIP],
+      keepa: ['先月の購入：50 から', '新品（現在価格）：3000 から', '新品アイテム数（30日平均）：2 から', '（任意）新品「90日間の下落％」：-15 から 15（値段が安定した商品に絞る）', VARIATION_ALL_TIP],
       params: [
         { key: 'minSold', label: '月に売れている個数（最低）', unit: '個以上', def: 50, step: 10 },
         { key: 'maxSwing', label: '値段の動き（30日・90日の上下）', unit: '％以内', def: 15, step: 5 }
@@ -368,6 +375,8 @@
   var RESTRICTED_BRAND = /パナソニック|panasonic|ソニー|sony|マイクロソフト|microsoft|キヤノン|キャノン|canon|バンダイ|bandai|タカラトミー|takara\s*tomy|ノースフェイス|ノース・フェイス|north\s*face/i;
 
   function addCommonLines(it) {
+    var vl = variationLine(it);
+    if (vl) it.lines.push(vl);
     var t = sellerTrend(it);
     var avgText = '30日平均 ' + Math.round(it.sellersAvg) + '人 → いま ' + it.sellers + '人';
     // 複数買いを控える注意はリベ大ノウハウ図書館「ドンキホーテで月10万円稼ぐ方法」（全国同時セールで出品者が急増→価格急落）より
@@ -408,6 +417,11 @@
   function pctText(n) { return (n >= 0 ? '+' : '−') + Math.abs(Math.round(n)) + '%'; }
 
   function buildItems() {
+    var list = buildItemsRaw();
+    applyVariations(list);
+    return list;
+  }
+  function buildItemsRaw() {
     var defPct = settingNum('defPct') || 0;
     var defFba = settingNum('defFba') || 0;
     var other = settingNum('otherCost') || 0;
@@ -452,6 +466,8 @@
       var drops90 = num(cell(r, 'drops90'));
       var it = {
         title: cell(r, 'title'), asin: cell(r, 'asin'), brand: cell(r, 'brand'),
+        parent: cell(r, 'parent'), reviews: num(cell(r, 'reviews')),
+        variant: [cell(r, 'color'), cell(r, 'size')].filter(Boolean).join(' ／ '),
         model: model, jan: jan, category: cell(r, 'category'),
         current: current, avg: avg, avg90: avgNew90, amazonShare: amazonShare,
         amazonNow: amazonNow,
@@ -481,6 +497,42 @@
       if (it.low != null && it.low > 0) it.limitAtLow = Math.round(it.low - it.low * pct / 100 - fba - other);
       return it;
     });
+  }
+
+  // ---------- バリエーション（色違い・サイズ違い） ----------
+  // 根拠: リベ大 合宿（2025-08）2コマ目「バリエーションがある商品は、どれかが売れるとシリーズ全体のランキングが動くため、
+  // スキャンした商品が本当に売れているか分かりにくい。シリーズ全体の販売数 × その商品のレビュー数の割合で見積もる（例: 137個×34.55%≒47個）」。
+  // 同じ親ASINの商品で「月の販売数」がすべて同じ数なら、シリーズ全体の数字とみなしてレビュー数の割合で分ける。
+  function applyVariations(items) {
+    var groups = {};
+    items.forEach(function (it) {
+      if (it.parent && it.parent !== it.asin) (groups[it.parent] = groups[it.parent] || []).push(it);
+    });
+    Object.keys(groups).forEach(function (pid) {
+      var g = groups[pid];
+      g.forEach(function (it) { it.seriesSize = g.length; });
+      if (g.length < 2) return;
+      var solds = g.map(function (it) { return it.sold; }).filter(function (v) { return v != null; });
+      var shared = solds.length === g.length && solds.every(function (v) { return v === solds[0]; }) && solds[0] > 0;
+      if (!shared) return;
+      var totalReviews = g.reduce(function (a, it) { return a + (it.reviews || 0); }, 0);
+      g.forEach(function (it) {
+        it.soldSeries = it.sold;
+        if (totalReviews > 0 && it.reviews != null) {
+          it.reviewShare = it.reviews / totalReviews;
+          it.sold = Math.round(it.soldSeries * it.reviewShare);
+        } else {
+          it.soldShared = true;   // レビュー数が無く分けられない（シリーズ全体の数字のまま）
+        }
+      });
+    });
+  }
+  function variationLine(it) {
+    if (!it.seriesSize || it.seriesSize < 2) return null;
+    var head = '色・サイズ違いが ' + it.seriesSize + ' 種類' + (it.variant ? '（これは ' + it.variant + '）' : '');
+    if (it.reviewShare != null) return { text: head + '。シリーズ全体で月 ' + it.soldSeries + ' 個 × この商品のレビューの割合 ' + Math.round(it.reviewShare * 1000) / 10 + '% ＝ この商品は月 約' + it.sold + ' 個と見積もり（リベ大の方法）' };
+    if (it.soldShared) return { text: head + '。月の販売数はシリーズ全体の数字の可能性があります。Keepaで売れている色・サイズを確かめてください', warn: true };
+    return { text: head };
   }
 
   // 手法ごとの判定。条件に合えば true を返し、販売価格・見どころ（lines）・並び順の点数（score）を商品に書き込む。
@@ -686,6 +738,13 @@
     checkAvailable(items);
     renderModeWarn();
     var all = sortItems(applyFilters(items));
+    // 同じシリーズ（親ASIN）で、ほかの色・サイズも候補に残っていれば知らせる
+    var bySeries = {};
+    all.forEach(function (it) { if (it.parent && it.seriesSize > 1) bySeries[it.parent] = (bySeries[it.parent] || 0) + 1; });
+    all.forEach(function (it) {
+      var n = it.parent ? (bySeries[it.parent] || 0) - 1 : 0;
+      if (n > 0) it.lines.push({ text: '同じシリーズの別の色・サイズも ' + n + ' 種類が候補に残っています。売れている色・サイズに絞ってまとめて仕入れられます', hl: true });
+    });
     shown = all.slice(0, MAX_ROWS);
     $('count').textContent = '（' + rawRows.length + '件中 ' + all.length + '件）';
     $('empty').hidden = all.length > 0;
@@ -704,7 +763,8 @@
     tbody.textContent = '';
     shown.forEach(function (it) {
       var tr = document.createElement('tr');
-      tr.dataset.brand = it.brand || '';   // 毎朝の補助スクリプト（tools/research.js）がブランドを読むため
+      tr.dataset.brand = it.brand || '';
+      tr.dataset.parent = it.parent || '';   // 毎朝の補助スクリプト（tools/research.js）がブランドを読むため
 
       var tdTitle = el('td', 'title');
       tdTitle.appendChild(link(it.title || it.asin, 'https://www.amazon.co.jp/dp/' + encodeURIComponent(it.asin)));
@@ -894,6 +954,8 @@
       g.cleared = !!(st && st.ok + st.applied > 0);     // 出品できる／申請で通った記録があるブランドは解除済みとみなす
       g.docs = !!(st && st.docs > 0);
       g.sold = g.items.reduce(function (a, it) { return a + (it.sold || 0); }, 0);
+      // 色違い・サイズ違いは1つのシリーズとして数える
+      g.series = Object.keys(g.items.reduce(function (o, it) { o[it.parent || it.asin] = 1; return o; }, {})).length;
       // 解除用の商品: まとめて仕入れても3か月以内に売り切れる商品のうち、まとめ買いの費用（仕入れ上限×個数）が小さいもの
       var picks = g.items.map(function (it) {
         return { it: it, months: monthsToSell(it, qty), cost: it.limit != null ? it.limit * qty : null };
@@ -905,7 +967,7 @@
       g.pick = picks[0] || null;
       return g;
     }).filter(function (g) { return !g.cleared && g.pick; })
-      .sort(function (a, b) { return b.items.length - a.items.length || b.sold - a.sold; });
+      .sort(function (a, b) { return b.series - a.series || b.sold - a.sold; });
     return { qty: qty, list: list };
   }
   function renderUnlock(items) {
@@ -922,7 +984,7 @@
       if (g.docs) td.appendChild(el('div', 'sub warn', '書類が必要と記録済み'));
       if (RESTRICTED_BRAND.test(g.name)) td.appendChild(el('div', 'sub', '規制が多いメーカーの例に入っています'));
       tr.appendChild(td);
-      tr.appendChild(el('td', 'num', String(g.items.length)));
+      tr.appendChild(el('td', 'num', String(g.series)));
       tr.appendChild(el('td', 'num', g.sold.toLocaleString('ja-JP')));
       var p = g.pick, tdPick = el('td', 'title');
       tdPick.appendChild(link(p.it.title || p.it.asin, 'https://keepa.com/#!product/5-' + encodeURIComponent(p.it.asin)));
