@@ -26,6 +26,7 @@ const { chromium } = require('playwright');
       title: a ? a.textContent.trim() : '',
       asin: m ? m[1].toUpperCase() : '',
       brand: tr.dataset.brand || '',
+      parent: tr.dataset.parent || '',
       price: num(td[1].childNodes[0] && td[1].childNodes[0].textContent),
       sold: num(td[2].textContent),
       sellers: num(td[3].textContent),
