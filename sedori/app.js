@@ -58,6 +58,8 @@
     minSold: 100, maxSellers: 15, minPrice: 1000, maxPrice: '', minProfit: 200, otherCost: 50,
     defPct: 10, defFba: 500, keyword: '', noAmazon: true, checkFilter: 'all',
     unlockQty: 10, unlockBudget: '',
+    // 小口出品の基本成約料（1点売れるごとに約100円。ドライブ「Amazon物販の始め方」）。大口出品（月額制）に切り替えたら0にする。利用者の指示（2026-11-26）で当面は入れる
+    smallFee: 100,
     noRisingSellers: true, showUnknownSold: false,
     // 自己配送（自分で発送）した場合の計算。送料の初期値はリベ大「自己配送 始め方 マニュアル」（じゅんK）の「ネコポスだと送料200円/個弱」より
     selfShipOn: false, selfShip: 200,
@@ -427,6 +429,7 @@
     var other = settingNum('otherCost') || 0;
     var profit = settingNum('minProfit') || 0;
     var selfShip = settings.selfShipOn ? settingNum('selfShip') : null;
+    var smallFee = settingNum('smallFee') || 0;
     return rawRows.map(function (r) {
       // いまの価格: カート価格が空なら新品の最安値を使う。平均価格も同じ考え方。
       var curNew = num(cell(r, 'priceNew'));
@@ -487,14 +490,14 @@
       // 計算に使う販売価格を決め、手数料と仕入れ上限を出す
       it.setSell = function (sell) {
         it.price = sell;
-        it.fees = sell == null ? null : Math.round(sell * pct / 100 + fba);
+        it.fees = sell == null ? null : Math.round(sell * pct / 100 + fba + smallFee);
         it.limit = it.fees == null ? null : Math.round(sell - it.fees - other - profit);
         // 手数料と経費を引いて手元に残る金額。ここから仕入れ値を引いたものが利益。
         it.net = it.fees == null ? null : Math.round(sell - it.fees - other);
         // 自己配送ならFBA手数料の代わりに送料がかかる（リベ大「自己配送 始め方 マニュアル」）
-        it.limitSelf = (sell == null || selfShip == null) ? null : Math.round(sell - sell * pct / 100 - selfShip - other - profit);
+        it.limitSelf = (sell == null || selfShip == null) ? null : Math.round(sell - sell * pct / 100 - smallFee - selfShip - other - profit);
       };
-      if (it.low != null && it.low > 0) it.limitAtLow = Math.round(it.low - it.low * pct / 100 - fba - other);
+      if (it.low != null && it.low > 0) it.limitAtLow = Math.round(it.low - it.low * pct / 100 - fba - smallFee - other);
       return it;
     });
   }
@@ -1193,7 +1196,7 @@
 
   // ---------- 画面の入力とつなぐ ----------
 
-  var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword', 'selfShip', 'unlockQty', 'unlockBudget'];
+  var FILTER_IDS = ['minSold', 'maxSellers', 'minPrice', 'maxPrice', 'minProfit', 'otherCost', 'defPct', 'defFba', 'keyword', 'selfShip', 'unlockQty', 'unlockBudget', 'smallFee'];
   var API_IDS = ['rakutenAppId', 'rakutenKey', 'rakutenUrl', 'yahooAppId'];
 
   // 手法の切り替えボタンと、その手法の説明・条件の入力欄を作る
