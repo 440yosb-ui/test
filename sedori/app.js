@@ -795,6 +795,9 @@
       var q = shopQuery(it);
       tdLinks.appendChild(link('楽天', 'https://search.rakuten.co.jp/search/mall/' + encodeURIComponent(q) + '/?s=2', 'mini'));
       tdLinks.appendChild(link('Yahoo!', 'https://shopping.yahoo.co.jp/search?p=' + encodeURIComponent(q) + '&sort=%2Bprice', 'mini'));
+      // 大手ネットショップでの仕入れ先探し（ドライブ「電脳せどりの始め方」: ヨドバシ・ビックカメラなど総合サイトでの仕入れ）。開くのは利用者
+      tdLinks.appendChild(link('ヨドバシ', 'https://www.yodobashi.com/?word=' + encodeURIComponent(q), 'mini'));
+      tdLinks.appendChild(link('ビックカメラ', 'https://www.biccamera.com/bc/category/?q=' + encodeURIComponent(q), 'mini'));
       tdLinks.appendChild(link('Keepa', 'https://keepa.com/#!product/5-' + encodeURIComponent(it.asin), 'mini'));
       tr.appendChild(tdLinks);
 
