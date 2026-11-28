@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 最初にやること（実務担当・せどり）
+
+- **作業を始める前に、まず引き継ぎメモを読む**: Google ドライブ「せどり記録」フォルダの文書「せどり 引き継ぎメモ（実務担当向け）」（ID `1smO6gaDUoIJ4Iy-xuTleU8winiKvIOvV9RoKA_4ZJb0`）。進行中の作業、まだ終わっていないこと、利用者との約束、決めたことと理由、定期作業の状態が書いてある。セッションを切り替えたときに情報が抜けないようにするため（利用者の依頼 2026-11-28）。
+- **決めたことは、決めたその場でメモに書く**（利用者と決めたこと、約束したこと、定期作業を変えたこと、終わったこと）。会話の終わりまで待たない。
+- 利用者に「引き継ぎメモを最新にして」と言われたら、スキル `handoff-memo`（`.claude/skills/handoff-memo/SKILL.md`）の手順で書き直す。
+
 ## プロジェクト概要
 
 Claude Code を非プログラマーが学習するための日本語クイズ Web アプリ。iPhone Safari での通勤スキマ時間利用を想定。4 択と入力式のクイズを 30 問収録。ビルド工程・外部依存なしの純粋な静的サイト（GitHub Pages で配信する想定）。
