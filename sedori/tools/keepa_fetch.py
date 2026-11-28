@@ -120,7 +120,9 @@ def main():
     if '--max' in args:
         max_products = int(args[args.index('--max') + 1])
     if page is None:
-        page = datetime.date.today().toordinal() % PAGES_TO_ROTATE
+        # 日本時間の日付で決める（定期作業は日本時間の朝4時台で、UTC だと前日の日付になり同じページを2日続けて見てしまうため）
+        jst_today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).date()
+        page = jst_today.toordinal() % PAGES_TO_ROTATE
 
     left = call('token', {}).get('tokensLeft', 0)
     budget = left - FINDER_COST
